@@ -38,8 +38,21 @@ class NumParser(Parser):
             line_number = int(match.group(1))
             line = LINE_NUMBER_PATTERN.sub('', line)
 
-        words = [Word(address=addr, value=float(val)) for addr, val in self._tokenize(line)]
-        return Block(line_number=line_number, words=words, comment=comment)
+        tokens = self._tokenize(line)
+
+        words = []
+        adresses_list = []
+
+        for addr, val in tokens:
+            words.append(Word(address=addr, value=float(val)))
+            adresses_list.append(addr)
+
+        return Block(
+            line_number=line_number,
+            words=words,
+            comment=comment,
+            adresses_list=adresses_list
+        )
 
     def _parse_program(self, text: str) -> Program:
         program = Program()
@@ -52,7 +65,25 @@ class NumParser(Parser):
 
     # --- Step 2: Blocks -> Operations (semantic) ---
 
-    def _interpret_block(self, block: Block, state: ModalState) -> Operation | None:
+    def _interpret_block(self, block: Block, state: ModalState) -> list[Operation]:
+        if len(block.adresses_list) == 0:
+            return
+
+        operations = []
+
+        for adress in block.adresses_list:
+            match adress:
+                case "G":
+                    print('hi')
+                case "T":
+                    print('hi')
+                case "M":
+                    print('hi')
+                case "F":
+                    print('hi')
+                case _:
+                    print("Not found")
+
         g = block.get('G')
 
         # Declare type of movement
@@ -93,8 +124,9 @@ class NumParser(Parser):
         state = ModalState()
         operations = []
         for index, block in enumerate(program.blocks):
-            print(program.blocks)
-            if index == 15:
+            print(block)
+            print("")
+            if index > 20:
                 return operations
             op = self._interpret_block(block, state)
             if op is not None:

@@ -30,11 +30,12 @@ def test():
     with open(filename, "r") as file:
         contenido = file.read()
 
-    parsed = NumParser()(contenido)
-
-    # print(parsed.blocks)
+    parsed = NumParser().parse(contenido)
+    print("")
+    print(parsed)
+    return
     with open("output.txt", "w") as file:
-        for block in parsed.blocks:
+        for block in parsed:
             line = " ".join(
                 f"{word}"
                 for word in block.words

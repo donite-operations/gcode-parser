@@ -1,0 +1,51 @@
+Block(line_number=None, words=[], comment='ZONE1 X-750.0 Y-900.0 Z-816.1 T3=-1 21.07.2022')
+
+Block(line_number=None, words=[Word(address='O', value=1.0)], comment='TTSA-03-IS-C_trim ares')
+
+Block(line_number=1, words=[], comment='2022-02-03   09:44')
+
+Block(line_number=2, words=[Word(address='G', value=21.0)], comment=None)
+
+Block(line_number=3, words=[Word(address='G', value=0.0), Word(address='G', value=40.0), Word(address='G', value=80.0), Word(address='G', value=90.0)], comment=None)
+
+Block(line_number=4, words=[], comment=' --- TOOLLIST BEGIN --- ')
+
+Block(line_number=5, words=[], comment=' T3 R1.5 L35. 0. 3mm Endmill 3mm Endmill ')
+
+Block(line_number=6, words=[], comment=' --- TOOLLIST END --- ')
+
+Block(line_number=7, words=[], comment='TOTAL TIME:0 00:07:50')
+
+Block(line_number=8, words=[], comment='OPERATION 1')
+
+Block(line_number=9, words=[], comment='3MM ENDMILL')
+
+Block(line_number=10, words=[Word(address='G', value=49.0)], comment=None)
+
+Block(line_number=11, words=[Word(address='G', value=69.0)], comment=None)
+
+Block(line_number=12, words=[Word(address='G', value=0.0), Word(address='G', value=53.0), Word(address='Z', value=-250.0)], comment='sP_TC.txt')
+
+Block(line_number=13, words=[Word(address='G', value=0.0), Word(address='G', value=53.0), Word(address='B', value=0.0)], comment=None)
+
+Block(line_number=14, words=[Word(address='G', value=0.0), Word(address='G', value=53.0), Word(address='Z', value=-250.0)], comment=None)
+
+Block(line_number=15, words=[], comment=' 3MM ENDMILL ')
+
+Block(line_number=16, words=[Word(address='T', value=3.0), Word(address='M', value=6.0)], comment='3MM ENDMILL')
+
+Block(line_number=17, words=[Word(address='G', value=0.0), Word(address='G', value=53.0), Word(address='Z', value=-250.0)], comment='sP.txt')
+
+Block(line_number=18, words=[Word(address='G', value=0.0), Word(address='G', value=53.0), Word(address='B', value=0.0)], comment=None)
+
+Block(line_number=19, words=[Word(address='G', value=0.0), Word(address='G', value=53.0), Word(address='Z', value=-250.0)], comment=None)
+
+Block(line_number=20, words=[], comment='XY FEEDRATE')
+
+
+[
+    RapidMove(x=None, y=None, z=-250.0), 
+    RapidMove(x=None, y=None, z=-250.0), 
+    RapidMove(x=None, y=None, z=-250.0), 
+    RapidMove(x=None, y=None, z=-250.0)
+]
