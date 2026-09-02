@@ -82,14 +82,15 @@ class NumParser(Parser):
             adress_value = block.get(adress)
             match adress:
                 case "G":
-                    print('hi')
+                    op = NumHandler.handle_g_code(adress_value, state)
                 case "M":
-                    print('hi')
+                    op = NumHandler.handle_g_code(adress_value, state)
                 case "T":
                     print('hi')
                 case _:
                     print("Not found")
-
+            if op is not None:
+                operations.append(op)
         g = block.get('G')
 
         # Declare type of movement
