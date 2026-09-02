@@ -1,6 +1,8 @@
 from core.ir import RapidMove, LinearMove, ProgramEnd, ToolChange, SpindleDirection, CoolantState
 
 
+COMMAND_CODES = {"G", "M", "T", "S"}
+
 #! G-Codes
 
 PARSE_MOTION_CODES = {

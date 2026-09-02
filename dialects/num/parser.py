@@ -3,8 +3,12 @@
 import re
 from dialects.base import Parser
 from core.ir import Block, Word, Program, ModalState, Operation, LinearMove, RapidMove, ProgramEnd
-from dialects.num.mapping import PARSE_MOTION_CODES, ABSOLUTE_MODE_CODES, UNIT_CODES, PROGRAM_END_CODES
+from dialects.num.mapping import (
+    PARSE_MOTION_CODES, ABSOLUTE_MODE_CODES, UNIT_CODES, PROGRAM_END_CODES, 
+    COMMAND_CODES
+)
 
+from dialects.num.handler import NumHandler
 
 LINE_NUMBER_PATTERN = re.compile(r'^N(\d+)\s*')
 COMMENT_PATTERN = re.compile(r'\((.*?)\)')
@@ -12,7 +16,7 @@ TOKEN_PATTERN = re.compile(r'([A-Z])(-?\d+\.?\d*)')
 
 
 class NumParser(Parser):
-    """Parser del dialecto NUM: texto -> lista de Operations."""
+    """Parser: Num Text -> list[Operations]."""
 
     def parse(self, text: str) -> list[Operation]:
         program = self._parse_program(text)
@@ -72,14 +76,16 @@ class NumParser(Parser):
         operations = []
 
         for adress in block.adresses_list:
+            if adress not in COMMAND_CODES :
+                continue
+
+            adress_value = block.get(adress)
             match adress:
                 case "G":
                     print('hi')
-                case "T":
-                    print('hi')
                 case "M":
                     print('hi')
-                case "F":
+                case "T":
                     print('hi')
                 case _:
                     print("Not found")
