@@ -4,7 +4,7 @@ import re
 from dialects.base import Parser
 from core.ir import Block, Word, Program, ModalState, Operation, LinearMove, RapidMove, ProgramEnd
 from dialects.num.mapping import (
-    PARSE_MOTION_CODES, ABSOLUTE_MODE_CODES, UNIT_CODES, PROGRAM_END_CODES, 
+    G_MOTION_CODES, G_MODE_CODES, G_UNIT_CODES, PROGRAM_END_CODES, 
     COMMAND_CODES
 )
 
@@ -12,8 +12,9 @@ from dialects.num.handler import NumHandler
 
 LINE_NUMBER_PATTERN = re.compile(r'^N(\d+)\s*')
 COMMENT_PATTERN = re.compile(r'\((.*?)\)')
-TOKEN_PATTERN = re.compile(r'([A-Z])(-?\d+\.?\d*)')
-
+# TOKEN_PATTERN = re.compile(r'([A-Z])(-?\d+\.?\d*)')
+# TOKEN_PATTERN = re.compile(r'([A-Z#])(#?-?\d+\.?\d*(?:=-?\d+\.?\d*)?)')
+TOKEN_PATTERN = re.compile(r'([A-Z#])(#\d+|\d+=-?\d+\.?\d*|-?\d+\.?\d*)')
 
 class NumParser(Parser):
     """Parser: Num Text -> list[Operations]."""
@@ -48,7 +49,7 @@ class NumParser(Parser):
         adresses_list = []
 
         for addr, val in tokens:
-            words.append(Word(address=addr, value=float(val)))
+            words.append(Word(address=addr, value=val))
             adresses_list.append(addr)
 
         return Block(
@@ -79,53 +80,10 @@ class NumParser(Parser):
             if adress not in COMMAND_CODES :
                 continue
 
-            adress_value = block.get(adress)
-            match adress:
-                case "G":
-                    op = NumHandler.handle_g_code(adress_value, state)
-                case "M":
-                    op = NumHandler.handle_g_code(adress_value, state)
-                case "T":
-                    print('hi')
-                case _:
-                    print("Not found")
+            op = NumHandler.dispatch(adress, block.get(adress), state)
             if op is not None:
                 operations.append(op)
-        g = block.get('G')
 
-        # Declare type of movement
-        if g is not None:
-            g = int(g)
-            if g in ABSOLUTE_MODE_CODES:
-                state.absolute_mode = ABSOLUTE_MODE_CODES[g]
-                return None
-            if g in UNIT_CODES:
-                state.units_mm = (UNIT_CODES[g] == "mm")
-                return None
-            if g in PARSE_MOTION_CODES:
-                state.active_g = g
-
-        # Declare feed for the movement
-        f = block.get('F')
-        if f is not None:
-            state.last_feed = f
-
-        # Get coordinates of the move
-        x, y, z = block.get('X'), block.get('Y'), block.get('Z')
-
-        active = g if g in PARSE_MOTION_CODES else state.active_g
-        if active in PARSE_MOTION_CODES and (x is not None or y is not None or z is not None):
-            op_class = PARSE_MOTION_CODES[active]
-            if op_class is LinearMove:
-                return LinearMove(x=x, y=y, z=z, feed=state.last_feed)
-            elif op_class is RapidMove:
-                return RapidMove(x=x, y=y, z=z)
-
-        m = block.get('M')
-        if m is not None and int(m) in PROGRAM_END_CODES:
-            return ProgramEnd()
-
-        return None
 
     def _interpret_program(self, program: Program) -> list[Operation]:
         state = ModalState()
@@ -133,9 +91,10 @@ class NumParser(Parser):
         for index, block in enumerate(program.blocks):
             print(block)
             print("")
-            if index > 20:
+            if (block.line_number)  != None and block.line_number > 34:
                 return operations
-            op = self._interpret_block(block, state)
+            op = None
+            # op = self._interpret_block(block, state)
             if op is not None:
                 operations.append(op)
         return operations

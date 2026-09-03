@@ -1,43 +1,42 @@
-from core.ir import RapidMove, LinearMove, ProgramEnd, ToolChange, SpindleDirection, CoolantState
+from core.ir import RapidMove, LinearMove, ProgramEnd, ToolChange, SpindleDirection, CoolantState, DistanceMode
 
 
-COMMAND_CODES = {"G", "M", "T", "S"}
+COMMAND_CODES = {"G", "M", "T", "S", "#"}
 
-#! G-Codes
+class GCodes:
+    MOTION = {
+        0: RapidMove,
+        1: LinearMove,
+    }
 
-PARSE_MOTION_CODES = {
-    0: RapidMove,
-    1: LinearMove,
-}
+    MODE = {
+        90: DistanceMode.ABSOLUTE,
+        91: DistanceMode.INCREMENTAL,
+    }
 
-# G-Code Absolute Position 
-ABSOLUTE_MODE_CODES = {
-    90: True, 
-    91: False
-}
+    UNIT = {
+        20: "inch",
+        21: "mm",
+    }
 
-# G-Code Measurement unit 
-UNIT_CODES = {
-    21: "mm", 
-    20: "inch"
-}
 
-#! M-Codes
+class MCodes:
+    TOOL = {
+        6: ToolChange,
+    }
 
-TOOL_CODES = {
-    6: ToolChange
-}
+    SPINDLE = {
+        3: SpindleDirection.CLOCKWISE,
+        4: SpindleDirection.COUNTERCLOCKWISE,
+        5: SpindleDirection.STOP,
+    }
 
-SPINDLE_CODES = {
-    3: SpindleDirection.CLOCKWISE,
-    4: SpindleDirection.COUNTERCLOCKWISE,
-    5: SpindleDirection.STOP,
-}
+    COOLANT = {
+        8: CoolantState.ON,
+        9: CoolantState.OFF,
+    }
 
-COOLANT_CODES = {
-    8: CoolantState.ON,
-    9: CoolantState.OFF,
-}
-
-PROGRAM_END_CODES = {30, 2}
-
+    PROGRAM_END = {
+        2,
+        30,
+    }

@@ -1,0 +1,84 @@
+Block(line_number=None, words=[], comment='ZONE1 X-750.0 Y-900.0 Z-816.1 T3=-1 21.07.2022', adresses_list=[])
+
+Block(line_number=None, words=[Word(address='O', value='1')], comment='TTSA-03-IS-C_trim ares', adresses_list=['O'])
+
+Block(line_number=1, words=[], comment='2022-02-03   09:44', adresses_list=[])
+
+Block(line_number=2, words=[Word(address='G', value='21')], comment=None, adresses_list=['G'])
+
+Block(line_number=3, words=[Word(address='G', value='0'), Word(address='G', value='40'), Word(address='G', value='80'), Word(address='G', value='90')], comment=None, adresses_list=['G', 'G', 'G', 'G'])
+
+Block(line_number=4, words=[], comment=' --- TOOLLIST BEGIN --- ', adresses_list=[])
+
+Block(line_number=5, words=[], comment=' T3 R1.5 L35. 0. 3mm Endmill 3mm Endmill ', adresses_list=[])
+
+Block(line_number=6, words=[], comment=' --- TOOLLIST END --- ', adresses_list=[])
+
+Block(line_number=7, words=[], comment='TOTAL TIME:0 00:07:50', adresses_list=[])
+
+Block(line_number=8, words=[], comment='OPERATION 1', adresses_list=[])
+
+Block(line_number=9, words=[], comment='3MM ENDMILL', adresses_list=[])
+
+Block(line_number=10, words=[Word(address='G', value='49')], comment=None, adresses_list=['G'])
+
+Block(line_number=11, words=[Word(address='G', value='69')], comment=None, adresses_list=['G'])
+
+Block(line_number=12, words=[Word(address='G', value='0'), Word(address='G', value='53'), Word(address='Z', value='-250')], comment='sP_TC.txt', adresses_list=['G', 'G', 'Z'])
+
+Block(line_number=13, words=[Word(address='G', value='0'), Word(address='G', value='53'), Word(address='B', value='0')], comment=None, adresses_list=['G', 'G', 'B'])
+
+Block(line_number=14, words=[Word(address='G', value='0'), Word(address='G', value='53'), Word(address='Z', value='-250')], comment=None, adresses_list=['G', 'G', 'Z'])
+
+Block(line_number=15, words=[], comment=' 3MM ENDMILL ', adresses_list=[])
+
+Block(line_number=16, words=[Word(address='T', value='3'), Word(address='M', value='6')], comment='3MM ENDMILL', adresses_list=['T', 'M'])
+
+Block(line_number=17, words=[Word(address='G', value='0'), Word(address='G', value='53'), Word(address='Z', value='-250')], comment='sP.txt', adresses_list=['G', 'G', 'Z'])
+
+Block(line_number=18, words=[Word(address='G', value='0'), Word(address='G', value='53'), Word(address='B', value='0')], comment=None, adresses_list=['G', 'G', 'B'])
+
+Block(line_number=19, words=[Word(address='G', value='0'), Word(address='G', value='53'), Word(address='Z', value='-250')], comment=None, adresses_list=['G', 'G', 'Z'])
+
+Block(line_number=20, words=[Word(address='#', value='1=3000.')], comment='XY FEEDRATE', adresses_list=['#'])
+
+Block(line_number=21, words=[Word(address='#', value='2=2000.')], comment='Z FEEDRATE', adresses_list=['#'])
+
+Block(line_number=22, words=[Word(address='#', value='3=1000.')], comment='RED FEEDRATE', adresses_list=['#'])
+
+Block(line_number=23, words=[Word(address='S', value='16000'), Word(address='M', value='3')], comment=None, adresses_list=['S', 'M'])
+
+Block(line_number=24, words=[Word(address='M', value='8')], comment=None, adresses_list=['M'])
+
+Block(line_number=25, words=[], comment='--- files_x/freeJob_begin_end_files/5X_begin.txt ---', adresses_list=[])
+
+Block(line_number=26, words=[Word(address='G', value='0'), Word(address='G', value='57'), Word(address='G', value='90'), Word(address='C', value='0.'), Word(address='B', value='0.')], comment=None, adresses_list=['G', 'G', 'G', 'C', 'B'])
+
+Block(line_number=27, words=[Word(address='G', value='91'), Word(address='G', value='43.4'), Word(address='H', value='3'), Word(address='Z', value='-0.01')], comment='TCPC ON', adresses_list=['G', 'G', 'H', 'Z'])
+
+Block(line_number=28, words=[Word(address='G', value='0'), Word(address='G', value='90'), Word(address='X', value='-106.882'), Word(address='Y', value='-38.301')], comment=None, adresses_list=['G', 'G', 'X', 'Y'])
+
+Block(line_number=29, words=[Word(address='G', value='0'), Word(address='Z', value='148.')], comment=None, adresses_list=['G', 'Z'])
+
+Block(line_number=30, words=[Word(address='G', value='0'), Word(address='X', value='-106.882'), Word(address='Y', value='-38.301'), Word(address='Z', value='-7.'), Word(address='C', value='0.'), Word(address='B', value='0.')], comment=None, adresses_list=['G', 'X', 'Y', 'Z', 'C', 'B'])
+
+Block(line_number=None, words=[Word(address='G', value='49')], comment=None, adresses_list=['G'])
+
+Block(line_number=None, words=[Word(address='G', value='53')], comment=None, adresses_list=['G'])
+
+Block(line_number=None, words=[Word(address='G', value='52'), Word(address='X', value='0.4'), Word(address='Y', value='-1')], comment=None, adresses_list=['G', 'X', 'Y'])
+
+Block(line_number=None, words=[Word(address='G', value='43.4')], comment=None, adresses_list=['G'])
+
+Block(line_number=None, words=[Word(address='G', value='90')], comment=None, adresses_list=['G'])
+
+Block(line_number=31, words=[Word(address='G', value='5.1'), Word(address='Q', value='1'), Word(address='R', value='5')], comment=None, adresses_list=['G', 'Q', 'R'])
+
+Block(line_number=32, words=[Word(address='G', value='1'), Word(address='X', value='-106.882'), Word(address='Y', value='-38.301'), Word(address='Z', value='-27.'), Word(address='F', value='#2')], comment=None, adresses_list=['G', 'X', 'Y', 'Z', 'F'])
+
+Block(line_number=33, words=[Word(address='G', value='1'), Word(address='X', value='-102.882'), Word(address='Y', value='-38.301'), Word(address='Z', value='-27.'), Word(address='F', value='#1')], comment=None, adresses_list=['G', 'X', 'Y', 'Z', 'F'])
+
+Block(line_number=34, words=[Word(address='G', value='1'), Word(address='X', value='-99.382'), Word(address='Y', value='-38.301'), Word(address='Z', value='-27.')], comment=None, adresses_list=['G', 'X', 'Y', 'Z'])
+
+Block(line_number=35, words=[Word(address='G', value='1'), Word(address='X', value='-97.489'), Word(address='Y', value='-38.302'), Word(address='Z', value='-27.')], comment=None, adresses_list=['G', 'X', 'Y', 'Z'])
+

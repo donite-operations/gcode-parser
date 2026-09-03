@@ -3,6 +3,12 @@ from dataclasses import dataclass, field
 from typing import Union
 from enum import Enum
 
+#? Enum options
+
+class AbsoluteMode(Enum):
+    ABSOLUTE = True
+    INCREMENTAL = False
+
 class SpindleDirection(Enum):
     CLOCKWISE = "cw"
     COUNTERCLOCKWISE = "ccw"
@@ -13,7 +19,6 @@ class SpindleDirection(Enum):
     CLOCKWISE = "cw"
     COUNTERCLOCKWISE = "ccw"
     STOP = "stop"
-
 
 class CoolantState(Enum):
     ON = "on"     # M8
@@ -22,9 +27,20 @@ class CoolantState(Enum):
 #? Parse groups
 
 @dataclass
+class VariableRef:
+    number: int
+
+@dataclass
+class VariableAssignment:
+    number: int
+    value: float
+
+Expression = float | VariableRef
+
+@dataclass
 class Word:
     address: str
-    value: float
+    value: Expression | float
 
 @dataclass
 class Block:
@@ -50,8 +66,14 @@ class ModalState:
     absolute_mode: bool = True
     units_mm: bool = True
     last_feed: float | None = None
+    variables: dict[int, float] = field(default_factory=dict)
 
-#? Movement
+#? Parsed Options
+
+@dataclass
+class ParsedLine:
+    operations: list[Operation]
+    states: ModalState
 
 @dataclass
 class LinearMove:
@@ -65,6 +87,7 @@ class RapidMove:
     x: float | None = None
     y: float | None = None
     z: float | None = None
+    absolute_mode: AbsoluteMode = True
 
 @dataclass
 class SpindleSpeed:
@@ -88,4 +111,4 @@ class CoolantControl:
 class ProgramEnd:
     pass
 
-Operation = Union[LinearMove, RapidMove, ToolChange, SpindleSpeed, ProgramEnd]
+Operation = Union[LinearMove, RapidMove, ToolChange, SpindleSpeed, ProgramEnd, VariableAssignment]

@@ -22,7 +22,8 @@ def convert(text: str, source_dialect: str, target_dialect: str) -> str:
     writer = WRITERS[target_dialect]()
 
     operations = parser.parse(text)
-    return writer.write(operations)
+    print(operations)
+    # return writer.write(operations)
 
 def test():
     filename = "./examples/num_short.nc"

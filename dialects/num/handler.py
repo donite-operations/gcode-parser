@@ -1,24 +1,56 @@
 
-from dialects.num.mapping import (
-    PARSE_MOTION_CODES, ABSOLUTE_MODE_CODES, UNIT_CODES, PROGRAM_END_CODES
+from dialects.num.mapping import GCodes, MCodes
 
+from core.ir import (
+    Block, Word, Program, ModalState, Operation, LinearMove, 
+    RapidMove, ProgramEnd, VariableRef, Expression,
+    VariableAssignment
 )
 
-from core.ir import Block, Word, Program, ModalState, Operation, LinearMove, RapidMove, ProgramEnd
-
 class NumHandler:
+    _HANDLERS = {}
+
+    @staticmethod
+    def parse_value(raw: str) -> Expression:
+        if raw.startswith("#"):
+            return VariableRef(number=int(raw[1:]))
+        return float(raw)
+
+    @staticmethod
+    def handle_variable_assignment(raw: str, state: ModalState) -> VariableAssignment:
+        number_str, value_str = raw.split("=", 1)
+        number, value = int(number_str), float(value_str)
+        state.variables[number] = value
+        return VariableAssignment(number=number, value=value)
+
+    @staticmethod
     def handle_g_code(g:int, state: ModalState) -> Operation | None :
-        if g in ABSOLUTE_MODE_CODES:
-            state.absolute_mode = ABSOLUTE_MODE_CODES[g]
+        if g in GCodes.MOTION:
+            state.absolute_mode = GCodes.MODE[g]
             return None
-        if g in UNIT_CODES:
-            state.units_mm = (UNIT_CODES[g] == "mm")
+        if g in GCodes.UNIT:
+            state.units_mm = (GCodes.MODE[g] == "mm")
             return None
-        if g in PARSE_MOTION_CODES:
+        if g in GCodes.MODE:
             state.active_g = g
 
-    def handle_m_code(m:str) -> Operation | None :
+    @staticmethod
+    def handle_m_code(m:int) -> Operation | None :
+        return 
         pass
 
-    def handle_f_code(f:str) -> Operation | None:
+    @staticmethod
+    def handle_t_code(f:int) -> Operation | None:
         pass
+
+    _HANDLERS = {
+        "G": handle_g_code,
+        "M": handle_m_code,
+        "T": handle_t_code,
+        "#": handle_variable_assignment
+    }
+
+    @classmethod
+    def dispatch(cls, adress: str, value, state):
+        handler = cls._HANDLERS.get(adress)
+        return handler(value, state) if handler else None
