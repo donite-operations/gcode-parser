@@ -1,4 +1,9 @@
-from core.ir import RapidMove, LinearMove, ProgramEnd, ToolChange, SpindleDirection, CoolantState, DistanceMode
+from core.ir import (
+    RapidMove, LinearMove, ProgramEnd, ToolChange, 
+    SpindleDirection, CoolantState, 
+
+    AbsoluteMode, CompensationMode, RotationMode
+)
 
 
 COMMAND_CODES = {"G", "M", "T", "S", "#"}
@@ -10,8 +15,8 @@ class GCodes:
     }
 
     MODE = {
-        90: DistanceMode.ABSOLUTE,
-        91: DistanceMode.INCREMENTAL,
+        90: AbsoluteMode.ABSOLUTE,
+        91: AbsoluteMode.INCREMENTAL,
     }
 
     UNIT = {
@@ -19,6 +24,17 @@ class GCodes:
         21: "mm",
     }
 
+    ROTATION = {
+        68:RotationMode.ON,
+        69:RotationMode.OFF
+    }
+
+    TOOL_COMP = {
+        40: CompensationMode.OFF,
+        41: CompensationMode.ON,
+    }
+
+    DWELL = {4}
 
 class MCodes:
     TOOL = {
@@ -39,4 +55,5 @@ class MCodes:
     PROGRAM_END = {
         2,
         30,
+        99
     }

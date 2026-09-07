@@ -14,7 +14,6 @@ class SpindleDirection(Enum):
     COUNTERCLOCKWISE = "ccw"
     STOP = "stop"
 
-
 class SpindleDirection(Enum):
     CLOCKWISE = "cw"
     COUNTERCLOCKWISE = "ccw"
@@ -24,18 +23,21 @@ class CoolantState(Enum):
     ON = "on"     # M8
     OFF = "off"   # M9
 
-#? Parse groups
+class CompensationMode(Enum):
+    ON = "on"
+    OFF = "off"
+
+class RotationMode(Enum):
+    ON = True
+    OFF = False
 
 @dataclass
 class VariableRef:
     number: int
 
-@dataclass
-class VariableAssignment:
-    number: int
-    value: float
-
 Expression = float | VariableRef
+
+#? Syntax class
 
 @dataclass
 class Word:
@@ -60,6 +62,8 @@ class Block:
 class Program:
     blocks: list[Block] = field(default_factory=list)
 
+#? Actual state of the machine
+
 @dataclass
 class ModalState:
     active_g: int | None = None
@@ -68,32 +72,12 @@ class ModalState:
     last_feed: float | None = None
     variables: dict[int, float] = field(default_factory=dict)
 
-#? Parsed Options
+#? Machine Operations
 
 @dataclass
-class ParsedLine:
-    operations: list[Operation]
-    states: ModalState
-
-@dataclass
-class LinearMove:
-    x: float | None = None
-    y: float | None = None
-    z: float | None = None
-    feed: float | None = None
-
-@dataclass
-class RapidMove:
-    x: float | None = None
-    y: float | None = None
-    z: float | None = None
-    absolute_mode: AbsoluteMode = True
-
-@dataclass
-class SpindleSpeed:
-    rpm: float = 0
-
-#? Utilities
+class VariableAssignment:
+    number: int
+    value: float
 
 @dataclass
 class ToolChange:
@@ -106,6 +90,40 @@ class SpindleControl:
 @dataclass
 class CoolantControl:
     state: CoolantState
+
+class ToolCompensation:
+    mode: CompensationMode
+    offset: int | None
+
+@dataclass
+class SpindleSpeed:
+    rpm: float = 0
+
+@dataclass
+class Dwell:
+    time: float = 0
+    
+@dataclass
+class LinearMove:
+    x: float | None = None
+    y: float | None = None
+    z: float | None = None
+    b: float | None = None
+    c: float | None = None
+    feed: float | None = None
+
+@dataclass
+class RapidMove:
+    x: float | None = None
+    y: float | None = None
+    z: float | None = None
+    b: float | None = None
+    c: float | None = None
+    # absolute_mode: AbsoluteMode = True
+
+@dataclass
+class CoordinateRotation:
+    enabled: RotationMode
 
 @dataclass
 class ProgramEnd:
