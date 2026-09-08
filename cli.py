@@ -29,7 +29,7 @@ def main() -> int:
     parser = build_parser()
     args = parser.parse_args()
 
-    print(parser)
+    # print(parser)
     # if not args.input_file.exists():
     #     print(f"Error: no se encontró el archivo {args.input_file}", file=sys.stderr)
     #     return 1

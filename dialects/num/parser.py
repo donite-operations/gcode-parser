@@ -3,10 +3,7 @@
 import re
 from dialects.base import Parser
 from core.ir import Block, Word, Program, ModalState, Operation, LinearMove, RapidMove, ProgramEnd
-from dialects.num.mapping import (
-    G_MOTION_CODES, G_MODE_CODES, G_UNIT_CODES, PROGRAM_END_CODES, 
-    COMMAND_CODES
-)
+from dialects.num.mapping import COMMAND_CODES
 
 from dialects.num.handler import NumHandler
 
@@ -80,7 +77,11 @@ class NumParser(Parser):
             if adress not in COMMAND_CODES :
                 continue
 
-            op = NumHandler.dispatch(adress, block.get(adress), state)
+            op = NumHandler.dispatch(
+                adress=adress, 
+                value=block.get(adress), 
+                state=state
+            )
             if op is not None:
                 operations.append(op)
 
@@ -89,12 +90,13 @@ class NumParser(Parser):
         state = ModalState()
         operations = []
         for index, block in enumerate(program.blocks):
-            print(block)
-            print("")
             if (block.line_number)  != None and block.line_number > 34:
                 return operations
-            op = None
-            # op = self._interpret_block(block, state)
-            if op is not None:
-                operations.append(op)
+            interpreted_block = None
+            interpreted_block = self._interpret_block(block, state)
+            if interpreted_block is not None:
+                print(interpreted_block)
+                print("")
+                operations.append(interpreted_block)
+    
         return operations

@@ -5,6 +5,10 @@ from enum import Enum
 
 #? Enum options
 
+class Unit(Enum):
+    INCH = "inch"
+    MM = "mm"
+
 class AbsoluteMode(Enum):
     ABSOLUTE = True
     INCREMENTAL = False
@@ -31,13 +35,13 @@ class RotationMode(Enum):
     ON = True
     OFF = False
 
+#? Syntax class
+
 @dataclass
 class VariableRef:
     number: int
 
 Expression = float | VariableRef
-
-#? Syntax class
 
 @dataclass
 class Word:
@@ -91,6 +95,7 @@ class SpindleControl:
 class CoolantControl:
     state: CoolantState
 
+@dataclass
 class ToolCompensation:
     mode: CompensationMode
     offset: int | None
@@ -126,7 +131,15 @@ class CoordinateRotation:
     enabled: RotationMode
 
 @dataclass
+class FeedRate:
+    value: float
+
+@dataclass  
+class UnitMode:
+    value: Unit
+
+@dataclass
 class ProgramEnd:
     pass
 
-Operation = Union[LinearMove, RapidMove, ToolChange, SpindleSpeed, ProgramEnd, VariableAssignment]
+Operation = Union[LinearMove, RapidMove, ToolChange, SpindleSpeed, ProgramEnd, FeedRate, VariableAssignment]

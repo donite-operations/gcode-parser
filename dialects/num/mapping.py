@@ -1,14 +1,13 @@
 from core.ir import (
     RapidMove, LinearMove, ProgramEnd, ToolChange, 
-    SpindleDirection, CoolantState, 
+    SpindleDirection, CoolantState, Dwell, ModalState, Operation,
 
-    AbsoluteMode, CompensationMode, RotationMode
+    AbsoluteMode, CompensationMode, RotationMode, Unit
 )
 
+COMMAND_CODES = {"G", "M", "T", "S", "F"}
 
-COMMAND_CODES = {"G", "M", "T", "S", "#"}
-
-class GCodes:
+class GCodes():
     MOTION = {
         0: RapidMove,
         1: LinearMove,
@@ -20,8 +19,8 @@ class GCodes:
     }
 
     UNIT = {
-        20: "inch",
-        21: "mm",
+        20: Unit.INCH,
+        21: Unit.MM,
     }
 
     ROTATION = {
@@ -34,9 +33,11 @@ class GCodes:
         41: CompensationMode.ON,
     }
 
-    DWELL = {4}
+    DWELL = {
+        4:Dwell
+    }
 
-class MCodes:
+class MCodes():
     TOOL = {
         6: ToolChange,
     }
