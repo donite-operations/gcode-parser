@@ -46,7 +46,7 @@ Expression = float | VariableRef
 @dataclass
 class Word:
     address: str
-    value: Expression | float
+    value: str
 
 @dataclass
 class Block:

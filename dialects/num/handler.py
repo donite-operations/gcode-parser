@@ -11,10 +11,9 @@ class CodeDispatcher:
     DISPATCH: dict[int, Callable[[int, ModalState], Operation | None]] = {}
 
     @classmethod
-    def dispatch(cls, code: int, state: ModalState) -> Operation | None:
+    def dispatch(cls, code: float, state: ModalState) -> Operation | None:
         handler = cls.DISPATCH.get(code)
-        print(cls.DISPATCH)
-        print(handler)
+        print(f"the handler is {cls.DISPATCH.get(code)}")
         if handler is None:
             return None
         return handler(code, state)
@@ -22,32 +21,32 @@ class CodeDispatcher:
 
 class GCodeHandler(CodeDispatcher):
     @staticmethod
-    def _motion(g: int, state: ModalState) -> Operation | None:
+    def _motion(g: float, state: ModalState) -> Operation | None:
         state.active_g = g
         return None
 
     @staticmethod
-    def _absolute_mode(g: int, state: ModalState) -> Operation | None:
+    def _absolute_mode(g: float, state: ModalState) -> Operation | None:
         state.absolute_mode = GCodes.MODE[g]
         return None
 
     @staticmethod
-    def _unit(g: int, state: ModalState) -> Operation | None:
+    def _unit(g: float, state: ModalState) -> Operation | None:
         state.units_mm = (GCodes.UNIT[g] == "mm")
         return None
 
     @staticmethod
-    def _tool_comp(g: int, state: ModalState) -> Operation | None:
+    def _tool_comp(g: float, state: ModalState) -> Operation | None:
         return ToolCompensation(mode=GCodes.TOOL_COMP[g])
 
     @staticmethod
-    def _rotation(g: int, state: ModalState) -> Operation | None:
+    def _rotation(g: float, state: ModalState) -> Operation | None:
         return CoordinateRotation(enabled=GCodes.ROTATION[g])
 
 
 class MCodeHandler(CodeDispatcher):
     @staticmethod
-    def _operation(m: int, state: ModalState) -> Operation | None:
+    def _operation(m: float, state: ModalState) -> Operation | None:
         # TODO: idealmente esto arma y devuelve un CoolantControl(...)
         # en vez de solo tocar estado — revisar contra tu IR.
         state.active_m = m

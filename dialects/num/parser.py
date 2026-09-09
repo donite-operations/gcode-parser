@@ -72,15 +72,18 @@ class NumParser(Parser):
             return
 
         operations = []
-
-        for address in block.adresses_list:
-            if address not in COMMAND_CODES :
+        print(block)
+        return
+        for word in block.words:
+            if word.address not in COMMAND_CODES :
                 continue
 
-            print( "Codigo G" + block.get(address))
+            print(word.address)
+            print( "Codigo G" + word.value)
+            print(type(word.value))
             op = NumHandler.dispatch(
-                address=address, 
-                value=block.get(address), 
+                address=word.address, 
+                value=word.value, 
                 state=state
             )
             if op is not None:
