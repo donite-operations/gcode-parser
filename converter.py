@@ -22,7 +22,7 @@ def convert(text: str, source_dialect: str, target_dialect: str) -> str:
     writer = WRITERS[target_dialect]()
 
     operations = parser.parse(text)
-    print(operations)
+    # print(operations)
     # return writer.write(operations)
 
 def test():
@@ -33,7 +33,7 @@ def test():
 
     parsed = NumParser().parse(contenido)
     print("")
-    print(parsed)
+    # print(parsed)
     return
     with open("output.txt", "w") as file:
         for block in parsed:

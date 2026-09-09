@@ -73,13 +73,14 @@ class NumParser(Parser):
 
         operations = []
 
-        for adress in block.adresses_list:
-            if adress not in COMMAND_CODES :
+        for address in block.adresses_list:
+            if address not in COMMAND_CODES :
                 continue
 
+            print( "Codigo G" + block.get(address))
             op = NumHandler.dispatch(
-                adress=adress, 
-                value=block.get(adress), 
+                address=address, 
+                value=block.get(address), 
                 state=state
             )
             if op is not None:
@@ -95,8 +96,8 @@ class NumParser(Parser):
             interpreted_block = None
             interpreted_block = self._interpret_block(block, state)
             if interpreted_block is not None:
-                print(interpreted_block)
-                print("")
+                # print(interpreted_block)
+                # print("")
                 operations.append(interpreted_block)
     
         return operations

@@ -1,10 +1,9 @@
-
 from dialects.num.mapping import GCodes, MCodes
 from typing import Callable
 from core.ir import (
-    Block, Word, Program, ModalState, Operation, LinearMove, 
+    Block, Word, Program, ModalState, Operation, LinearMove,
     RapidMove, ProgramEnd, VariableRef, Expression,
-    VariableAssignment,AbsoluteMode, ToolCompensation, CoordinateRotation, Dwell
+    VariableAssignment, AbsoluteMode, ToolCompensation, CoordinateRotation, Dwell
 )
 
 
@@ -14,13 +13,12 @@ class CodeDispatcher:
     @classmethod
     def dispatch(cls, code: int, state: ModalState) -> Operation | None:
         handler = cls.DISPATCH.get(code)
-        print("Function handler")
-        print(code)
+        print(cls.DISPATCH)
         print(handler)
-        return
         if handler is None:
             return None
         return handler(code, state)
+
 
 class GCodeHandler(CodeDispatcher):
     @staticmethod
@@ -46,43 +44,17 @@ class GCodeHandler(CodeDispatcher):
     def _rotation(g: int, state: ModalState) -> Operation | None:
         return CoordinateRotation(enabled=GCodes.ROTATION[g])
 
-    @classmethod
-    def handle_g_code(cls, g: int, state: ModalState) -> Operation | None:
-        if cls.DISPATCH is None:
-            cls.DISPATCH = {
-                **{g_code: cls._motion for g_code in GCodes.MOTION},
-                **{g_code: cls._distance_mode for g_code in GCodes.MODE},
-                **{g_code: cls._unit for g_code in GCodes.UNIT},
-                **{g_code: cls._tool_comp for g_code in GCodes.TOOL_COMP},
-                **{g_code: cls._rotation for g_code in GCodes.ROTATION},
-            }
-
-        handler = cls.DISPATCH.get(g)
-        if handler is None:
-            return None #Not Supported code
-        return handler(g, state)
 
 class MCodeHandler(CodeDispatcher):
     @staticmethod
-    def _operation(g: int, state: ModalState) -> Operation | None:
-        state.active_g = g
+    def _operation(m: int, state: ModalState) -> Operation | None:
+        # TODO: idealmente esto arma y devuelve un CoolantControl(...)
+        # en vez de solo tocar estado — revisar contra tu IR.
+        state.active_m = m
         return None
 
-    @classmethod
-    def handle_m_code(cls, g: int, state: ModalState) -> Operation | None:
-        if cls.DISPATCH is None:
-            cls.DISPATCH = {
-                **{m_code: cls._operation for m_code in MCodes.COOLANT},
-            }
-
-        handler = cls.DISPATCH.get(g)
-        if handler is None:
-            return None #Not Supported code
-        return handler(g, state)
 
 class NumHandler:
-    _HANDLERS = {}
-
     @staticmethod
     def parse_value(raw: str) -> Expression:
         if raw.startswith("#"):
@@ -96,21 +68,21 @@ class NumHandler:
         state.variables[number] = value
         return VariableAssignment(number=number, value=value)
 
-    @classmethod
-    def handle_t_code(f:int, state: ModalState) -> Operation | None:
+    @staticmethod
+    def handle_t_code(value: int, state: ModalState) -> Operation | None:
         return None
 
-    _HANDLERS = {
-        "G": GCodeHandler.dispatch,
-        "M": MCodeHandler.dispatch,
-        "T": handle_t_code,
-        # "#": handle_variable_assignment
-    }
-
     @classmethod
-    def dispatch(cls, adress: str, value, state: ModalState):
-        handler = cls._HANDLERS.get(adress)
+    def dispatch(cls, address: str, value, state: ModalState):
+        handler = cls._HANDLERS.get(address)
         return handler(value, state) if handler else None
+
+NumHandler._HANDLERS = {
+    "G": GCodeHandler.dispatch,
+    "M": MCodeHandler.dispatch,
+    "T": NumHandler.handle_t_code,
+    # "#": NumHandler.handle_variable_assignment
+}
 
 GCodeHandler.DISPATCH = {
     **{g_code: GCodeHandler._motion for g_code in GCodes.MOTION},
@@ -120,8 +92,6 @@ GCodeHandler.DISPATCH = {
     **{g_code: GCodeHandler._rotation for g_code in GCodes.ROTATION},
 }
 
-print(GCodeHandler.DISPATCH)
 MCodeHandler.DISPATCH = {
     **{m_code: MCodeHandler._operation for m_code in MCodes.COOLANT},
 }
-
