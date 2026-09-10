@@ -1,10 +1,10 @@
 from core.ir import (
     RapidMove, LinearMove, ProgramEnd, ToolChange,
     SpindleDirection, CoolantState, Dwell, ModalState, Operation,
-    AbsoluteMode, CompensationMode, RotationMode, Unit
+    AbsoluteMode, CompensationMode, RotationMode, Unit, CycleType
 )
 
-COMMAND_CODES = {"G", "M", "T", "S", "F"}
+COMMAND_CODES = {"G", "M", "T", "S", "F", "#"}
 
 
 class GCodes():
@@ -13,7 +13,7 @@ class GCodes():
         "1": LinearMove,
     }
 
-    MODE = {
+    ABSOLUTE = {
         "90": AbsoluteMode.ABSOLUTE,
         "91": AbsoluteMode.INCREMENTAL,
     }
@@ -29,14 +29,26 @@ class GCodes():
     }
 
     TOOL_COMP = {
-        "40": CompensationMode.OFF,
         "41": CompensationMode.ON,
+        "40": CompensationMode.OFF,
     }
 
     DWELL = {
         "4": Dwell,
     }
 
+    CANNED_CYCLE = {
+        "80":CycleType.CANCEL,
+        "81":CycleType.DRILL,
+        "82":CycleType.DRILL_DWELL,
+        "83":CycleType.TAP,
+        "84":CycleType.TAP,
+        "85":CycleType.BORE,
+        "86":CycleType.BORE_STOP,
+        "87":CycleType.BORE_MANUAL,
+        "88":CycleType.BORE_DWELL_MANUAL,
+        "88":CycleType.BORE_DWELL,
+    }
 
 class MCodes():
     TOOL = {

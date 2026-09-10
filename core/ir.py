@@ -35,6 +35,18 @@ class RotationMode(Enum):
     ON = True
     OFF = False
 
+class CycleType(Enum):
+    CANCEL = "cancel"              # G80
+    DRILL = "drill"                # G81
+    DRILL_DWELL = "drill_dwell"    # G82
+    PECK_DRILL = "peck_drill"      # G83
+    TAP = "tap"                    # G84
+    BORE = "bore"                  # G85
+    BORE_STOP = "bore_stop"        # G86
+    BORE_MANUAL = "bore_manual"    # G87
+    BORE_DWELL_MANUAL = "bore_dwell_manual"  # G88
+    BORE_DWELL = "bore_dwell"      # G89
+
 #? Syntax class
 
 @dataclass
@@ -53,7 +65,6 @@ class Block:
     line_number: int | None = None
     words: list[Word] = field(default_factory=list)
     comment: str | None = None
-    adresses_list: list[str] | None = None
 
     def get(self, address: str) -> float | None:
         """Search the address and returns de G-Code Command Value -> 'G90' Return: 90"""
@@ -66,6 +77,13 @@ class Block:
 class Program:
     blocks: list[Block] = field(default_factory=list)
 
+@dataclass
+class HandlerContext:
+    command: str
+    value: str
+    state: ModalState
+    block: Block | None = None
+
 #? Actual state of the machine
 
 @dataclass
@@ -77,6 +95,15 @@ class ModalState:
     variables: dict[int, float] = field(default_factory=dict)
 
 #? Machine Operations
+
+@dataclass
+class CannedCycle:
+    cycle: CycleType
+    z: float | None = None      # Final Depth
+    r: float | None = None      # Point of Reference
+    feed: float | None = None   
+    dwell: float | None = None  # Pause (G82, G88, G89)
+    peck: float | None = None   # Pecking increase (G83)
 
 @dataclass
 class VariableAssignment:
@@ -98,7 +125,6 @@ class CoolantControl:
 @dataclass
 class ToolCompensation:
     mode: CompensationMode
-    offset: int | None
 
 @dataclass
 class SpindleSpeed:
@@ -125,6 +151,10 @@ class RapidMove:
     b: float | None = None
     c: float | None = None
     # absolute_mode: AbsoluteMode = True
+
+@dataclass
+class Absolute:
+    mode: AbsoluteMode
 
 @dataclass
 class CoordinateRotation:

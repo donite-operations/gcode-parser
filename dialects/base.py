@@ -1,6 +1,7 @@
 # dialects/base.py
 from abc import ABC, abstractmethod
 from core.ir import Operation
+from dataclasses import dataclass
 
 
 class Parser(ABC):

@@ -2,7 +2,7 @@
 
 import re
 from dialects.base import Parser
-from core.ir import Block, Word, Program, ModalState, Operation, LinearMove, RapidMove, ProgramEnd
+from core.ir import (Block, Word, Program, HandlerContext, ModalState, Operation)
 from dialects.num.mapping import COMMAND_CODES
 
 from dialects.num.handler import NumHandler
@@ -43,17 +43,13 @@ class NumParser(Parser):
         tokens = self._tokenize(line)
 
         words = []
-        adresses_list = []
-
         for addr, val in tokens:
             words.append(Word(address=addr, value=val))
-            adresses_list.append(addr)
 
         return Block(
             line_number=line_number,
             words=words,
             comment=comment,
-            adresses_list=adresses_list
         )
 
     def _parse_program(self, text: str) -> Program:
@@ -68,39 +64,29 @@ class NumParser(Parser):
     # --- Step 2: Blocks -> Operations (semantic) ---
 
     def _interpret_block(self, block: Block, state: ModalState) -> list[Operation]:
-        if len(block.adresses_list) == 0:
+        if len(block.words) == 0:
             return
 
         operations = []
-        print(block)
-        return
         for word in block.words:
             if word.address not in COMMAND_CODES :
                 continue
-
-            print(word.address)
-            print( "Codigo G" + word.value)
-            print(type(word.value))
-            op = NumHandler.dispatch(
-                address=word.address, 
-                value=word.value, 
-                state=state
-            )
+            ctx = HandlerContext(command=word.address, value=word.value, state=state, block=block)
+            print( "Codigo: "+ word.address + word.value)
+            op = NumHandler.dispatch(ctx)
+            print(op)
             if op is not None:
                 operations.append(op)
 
 
     def _interpret_program(self, program: Program) -> list[Operation]:
         state = ModalState()
-        operations = []
         for index, block in enumerate(program.blocks):
+            operations = []
             if (block.line_number)  != None and block.line_number > 34:
                 return operations
             interpreted_block = None
             interpreted_block = self._interpret_block(block, state)
             if interpreted_block is not None:
-                # print(interpreted_block)
-                # print("")
                 operations.append(interpreted_block)
-    
         return operations
