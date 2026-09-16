@@ -72,21 +72,25 @@ class NumParser(Parser):
             if word.address not in COMMAND_CODES :
                 continue
             ctx = HandlerContext(command=word.address, value=word.value, state=state, block=block)
-            print( "Codigo: "+ word.address + word.value)
+            # print( "Codigo: "+ word.address + word.value)
             op = NumHandler.dispatch(ctx)
-            print(op)
             if op is not None:
                 operations.append(op)
+
+        return operations
 
 
     def _interpret_program(self, program: Program) -> list[Operation]:
         state = ModalState()
+        operations = []
+
         for index, block in enumerate(program.blocks):
-            operations = []
-            if (block.line_number)  != None and block.line_number > 34:
-                return operations
+            # if (block.line_number)  != None and block.line_number > 34:
+            #     return operations
             interpreted_block = None
             interpreted_block = self._interpret_block(block, state)
+            print("")
+            print(interpreted_block)
             if interpreted_block is not None:
                 operations.append(interpreted_block)
         return operations

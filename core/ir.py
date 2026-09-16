@@ -18,18 +18,19 @@ class SpindleDirection(Enum):
     COUNTERCLOCKWISE = "ccw"
     STOP = "stop"
 
-class SpindleDirection(Enum):
-    CLOCKWISE = "cw"
-    COUNTERCLOCKWISE = "ccw"
-    STOP = "stop"
-
 class CoolantState(Enum):
     ON = "on"     # M8
     OFF = "off"   # M9
 
-class CompensationMode(Enum):
-    ON = "on"
+class CutterCompensationMode(Enum):
     OFF = "off"
+    LEFT = "left"
+    RIGHT = "right"
+
+class ToolCompensationMode(Enum):
+    OFF = "off"
+    LENGTH = "length"
+    TCP = "tcp"
 
 class RotationMode(Enum):
     ON = True
@@ -46,6 +47,12 @@ class CycleType(Enum):
     BORE_MANUAL = "bore_manual"    # G87
     BORE_DWELL_MANUAL = "bore_dwell_manual"  # G88
     BORE_DWELL = "bore_dwell"      # G89
+
+class WorkCoordinateSystem(Enum):
+    G54 = "G54"
+    G55 = "G55"
+    G56 = "G56"
+    G57 = "G57"
 
 #? Syntax class
 
@@ -92,6 +99,7 @@ class ModalState:
     absolute_mode: bool = True
     units_mm: bool = True
     last_feed: float | None = None
+    wcs: WorkCoordinateSystem | None = None
     variables: dict[int, float] = field(default_factory=dict)
 
 #? Machine Operations
@@ -112,19 +120,24 @@ class VariableAssignment:
 
 @dataclass
 class ToolChange:
-    tool_number: int = 0
+    tool_number: str
 
 @dataclass
 class SpindleControl:
-    direction: SpindleDirection
+    mode: SpindleDirection
 
 @dataclass
 class CoolantControl:
-    state: CoolantState
+    mode: CoolantState
 
-@dataclass
+@dataclass(frozen=True)
+class CutterCompensation:
+    mode: CutterCompensationMode
+
+@dataclass(frozen=True)
 class ToolCompensation:
-    mode: CompensationMode
+    mode: ToolCompensationMode
+    offset: str | None = None
 
 @dataclass
 class SpindleSpeed:
@@ -133,7 +146,7 @@ class SpindleSpeed:
 @dataclass
 class Dwell:
     time: float = 0
-    
+
 @dataclass
 class LinearMove:
     x: float | None = None
@@ -142,6 +155,7 @@ class LinearMove:
     b: float | None = None
     c: float | None = None
     feed: float | None = None
+    wcs: WorkCoordinateSystem | None = None
 
 @dataclass
 class RapidMove:
@@ -150,6 +164,7 @@ class RapidMove:
     z: float | None = None
     b: float | None = None
     c: float | None = None
+    wcs: WorkCoordinateSystem | None = None
     # absolute_mode: AbsoluteMode = True
 
 @dataclass
@@ -169,7 +184,22 @@ class UnitMode:
     value: Unit
 
 @dataclass
+class WorkCoordinate:
+    wcs: WorkCoordinateSystem
+
+@dataclass
 class ProgramEnd:
     pass
 
-Operation = Union[LinearMove, RapidMove, ToolChange, SpindleSpeed, ProgramEnd, FeedRate, VariableAssignment]
+Operation = Union[
+    LinearMove, 
+    RapidMove, 
+    ToolChange, 
+    SpindleSpeed, 
+    ProgramEnd, 
+    FeedRate, 
+    VariableAssignment,
+    CutterCompensation,
+    ToolCompensation,
+    WorkCoordinate
+]

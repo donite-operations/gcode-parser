@@ -1,7 +1,8 @@
 from core.ir import (
-    RapidMove, LinearMove, ProgramEnd, ToolChange,
-    SpindleDirection, CoolantState, Dwell, ModalState, Operation,
-    AbsoluteMode, CompensationMode, RotationMode, Unit, CycleType
+    RapidMove, LinearMove, ToolChange,
+    SpindleDirection, CoolantState, Dwell,
+    AbsoluteMode, ToolCompensationMode, RotationMode, Unit, CycleType,
+    CutterCompensationMode, WorkCoordinateSystem
 )
 
 COMMAND_CODES = {"G", "M", "T", "S", "F", "#"}
@@ -28,9 +29,17 @@ class GCodes():
         "69": RotationMode.OFF,
     }
 
-    TOOL_COMP = {
-        "41": CompensationMode.ON,
-        "40": CompensationMode.OFF,
+    CUTTER_COMPENSATION = {
+        "40": CutterCompensationMode.OFF,
+        "41": CutterCompensationMode.LEFT,
+        "42": CutterCompensationMode.RIGHT,
+    }
+
+
+    TOOL_COMPENSATION = {
+        "49": ToolCompensationMode.OFF,
+        "43": ToolCompensationMode.LENGTH,
+        "43.4": ToolCompensationMode.TCP,
     }
 
     DWELL = {
@@ -50,12 +59,19 @@ class GCodes():
         "88":CycleType.BORE_DWELL,
     }
 
+    WCS = {
+        "54":WorkCoordinateSystem.G54,
+        "55":WorkCoordinateSystem.G55,
+        "56":WorkCoordinateSystem.G56,
+        "57":WorkCoordinateSystem.G57
+    }
+
 class MCodes():
     TOOL = {
         "6": ToolChange,
     }
 
-    SPINDLE = {
+    SPINDLE_DIRECTION = {
         "3": SpindleDirection.CLOCKWISE,
         "4": SpindleDirection.COUNTERCLOCKWISE,
         "5": SpindleDirection.STOP,

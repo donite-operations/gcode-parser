@@ -22,26 +22,21 @@ def convert(text: str, source_dialect: str, target_dialect: str) -> str:
     writer = WRITERS[target_dialect]()
 
     operations = parser.parse(text)
-    # print(operations)
     # return writer.write(operations)
 
 def test():
-    filename = "./examples/num_short.nc"
+    filename = "./examples/num_ares.nc"
 
     with open(filename, "r") as file:
         contenido = file.read()
 
     parsed = NumParser().parse(contenido)
-    print("")
+    print(parsed)
     # print(parsed)
-    return
-    with open("output.txt", "w") as file:
+    with open("ir_output.txt", "w") as file:
         for block in parsed:
-            line = " ".join(
-                f"{word}"
-                for word in block.words
-            )
-
-            file.write( line + "\n")
+            if len(block) != 0 :
+                print(block)
+                file.write(str(block) + "\n")
 
 test()
