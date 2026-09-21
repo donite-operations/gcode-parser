@@ -1,24 +1,33 @@
-from dialects.num.mapping import GCodes, MCodes
+import time
+
+from dataclasses import replace
+from dialects.fanuc.ir_handler.mapping import GCodes, MCodes
 from typing import Callable
 from core.ir import (
     Operation, Expression,
     LinearMove, RapidMove, ProgramEnd, VariableRef, ToolChange, CutterCompensation,
     VariableAssignment, ToolCompensation, CoordinateRotation, Dwell, SpindleSpeed,
     CannedCycle, HandlerContext,Absolute, UnitMode, FeedRate, SpindleControl, CoolantControl,
-    WorkCoordinate
+    WorkCoordinate, NotIdentifyOperation, ContourControlMode, CancelOffset, LocalOffset
 )
-import time
-
+ 
 def _to_float_or_none(value):
     return float(value) if value is not None else None
 
 def get_parameter_ctx(search_word: str, father_ctx: HandlerContext, look_for: list[str] = []) -> HandlerContext | None:
     #! father_ctx.block. 
-    word_value = father_ctx.block.get(search_word)
+
+    if len(look_for) == 0 :
+        word_value = father_ctx.block.get(search_word)
+    else:
+        word_value =  father_ctx.block.get_from(search_word, look_for)
+
     if word_value is None:
         return None
 
     return HandlerContext(command=search_word, value=word_value, state=father_ctx.state) # Need to build HandlerContext because the ctx is for the motion
+
+
 
 class CodeDispatcher:
     DISPATCH: dict[str, Callable[[HandlerContext], Operation | None]] = {}
@@ -39,9 +48,10 @@ class GCodeHandler(CodeDispatcher):
         )
         ctx_feedrate = get_parameter_ctx(search_word="F", father_ctx=ctx)
         ParameterHandler._feedrate(ctx_feedrate)
-        ctx_wcs = get_parameter_ctx(search_word="G", father_ctx=ctx)
-        GCodeHandler._work_coordinate_system(search_)
+
         #! take in count that if there's no movement it is not necessary to have the motion movement on the line
+        ctx_wcs = get_parameter_ctx(search_word="G", father_ctx=ctx, look_for=GCodes.WORK_COORDINATE_SYSTEM)
+        GCodeHandler._work_coordinate_system(ctx=ctx_wcs)
 
         op_class = GCodes.MOTION[ctx.value]
         if op_class is LinearMove:
@@ -77,8 +87,32 @@ class GCodeHandler(CodeDispatcher):
 
     @staticmethod
     def _work_coordinate_system(ctx: HandlerContext):
-        ctx.state.wcs = WorkCoordinate[ctx.value]
+        if (ctx is None): return
+        ctx.state.wcs = GCodes.WORK_COORDINATE_SYSTEM[ctx.value]
         return WorkCoordinate(wcs=ctx.state.wcs)
+
+    @staticmethod
+    def _contour_control_mode(ctx: HandlerContext):
+        q_countour = int(ctx.block.get("Q"))
+        r_countor = ctx.block.get("R")
+
+        if r_countor :
+            ctx.state.last_contour_tolerance = int(r_countor)
+        return ContourControlMode(q=q_countour, tolerance=ctx.state.last_contour_tolerance)
+
+    @staticmethod
+    def _cancel_offset(ctx: HandlerContext):
+        ctx.state.wcs = None
+        return CancelOffset()
+
+    @staticmethod
+    def _temporary_offset(ctx: HandlerContext):
+        x, y, z, b, c = (
+            _to_float_or_none(ctx.block.get(axis))
+            for axis in ("X", "Y", "Z", "B", "C")
+        )
+
+        return LocalOffset(x=x, y=y, z=z, b=b, c=c)
 
 class MCodeHandler(CodeDispatcher):
 
@@ -98,13 +132,6 @@ class MCodeHandler(CodeDispatcher):
     @staticmethod
     def _spindle_control(ctx: HandlerContext) -> Operation :
         return SpindleControl(mode=MCodes.SPINDLE_DIRECTION[ctx.value])
-
-    @staticmethod
-    def _operation(ctx : HandlerContext) -> Operation :
-        # TODO: idealmente esto arma y devuelve un CoolantControl(...)
-        # en vez de solo tocar estado — revisar contra tu IR.
-        ctx.state.active_m = ctx.value
-        return None
 
     @staticmethod
     def _program_end(ctx: HandlerContext) -> Operation  :
@@ -147,14 +174,24 @@ class ParameterHandler(CodeDispatcher):
     def _spindle_speed(ctx: HandlerContext):
         return SpindleSpeed(rpm=float(ctx.value))
 
-class NumHandler:
+class FanucHandler:
 
     @classmethod
     def dispatch(cls, ctx: HandlerContext):
         handler = cls.COMMAND_HANDLERS.get(ctx.command)
-        return handler(ctx) if handler else None
+        operation = None
+        not_Identified = False
 
-NumHandler.COMMAND_HANDLERS = {
+        if handler :
+            operation = handler(ctx)
+
+        return NotIdentifyOperation(
+            line_number=ctx.block.line_number, operation=ctx.command+ctx.value
+        ) if operation and not_Identified is None else operation
+
+        # return handler(ctx) if handler else None
+
+FanucHandler.COMMAND_HANDLERS = {
     "G": GCodeHandler.dispatch,
     "M": MCodeHandler.dispatch,
     "#": ParameterHandler._variable_assignment,
@@ -170,8 +207,10 @@ GCodeHandler.DISPATCH = {
     **{g_code: GCodeHandler._rotation for g_code in GCodes.ROTATION},
     **{g_code: GCodeHandler._canned_cycle for g_code in GCodes.CANNED_CYCLE},
     **{g_code: GCodeHandler._tool_compensation for g_code in GCodes.TOOL_COMPENSATION},
-
-
+    **{g_code: GCodeHandler._work_coordinate_system for g_code in GCodes.WORK_COORDINATE_SYSTEM},
+    **{g_code: GCodeHandler._contour_control_mode for g_code in GCodes.CONTOUR_MODE},
+    **{g_code: GCodeHandler._cancel_offset for g_code in GCodes.CANCEL_OFFSET},
+    **{g_code: GCodeHandler._temporary_offset for g_code in GCodes.TEMPORARY_OFFSET},
 }
 
 MCodeHandler.DISPATCH = {

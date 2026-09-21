@@ -59,12 +59,25 @@ class GCodes():
         "88":CycleType.BORE_DWELL,
     }
 
-    WCS = {
+    WORK_COORDINATE_SYSTEM = {
         "54":WorkCoordinateSystem.G54,
         "55":WorkCoordinateSystem.G55,
         "56":WorkCoordinateSystem.G56,
         "57":WorkCoordinateSystem.G57
     }
+
+    CONTOUR_MODE = {
+        "5.1"
+    }
+
+    CANCEL_OFFSET = {
+        "53"
+    }
+
+    TEMPORARY_OFFSET = {
+        "52"
+    }
+
 
 class MCodes():
     TOOL = {

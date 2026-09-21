@@ -80,6 +80,12 @@ class Block:
                 return w.value
         return None
 
+    def get_from(self, address: str, values: list[str]) -> float | None:
+        for word in self.words:
+            if word.address == address and str(word.value) in values:
+                return word.value
+
+        return None
 @dataclass
 class Program:
     blocks: list[Block] = field(default_factory=list)
@@ -100,6 +106,7 @@ class ModalState:
     units_mm: bool = True
     last_feed: float | None = None
     wcs: WorkCoordinateSystem | None = None
+    last_contour_tolerance: int | None = None
     variables: dict[int, float] = field(default_factory=dict)
 
 #? Machine Operations
@@ -165,7 +172,15 @@ class RapidMove:
     b: float | None = None
     c: float | None = None
     wcs: WorkCoordinateSystem | None = None
-    # absolute_mode: AbsoluteMode = True
+
+# ! Recordar hacer esto con G52 es un local offset que se le suma al activo
+@dataclass
+class LocalOffset:
+    x: int | None
+    y: int | None
+    z: int | None 
+    b: int | None
+    c: int | None
 
 @dataclass
 class Absolute:
@@ -188,8 +203,22 @@ class WorkCoordinate:
     wcs: WorkCoordinateSystem
 
 @dataclass
+class ContourControlMode:
+    q: int
+    tolerance: int | None = None
+
+@dataclass
+class CancelOffset:
+    pass
+
+@dataclass
 class ProgramEnd:
     pass
+
+@dataclass
+class NotIdentifyOperation :
+    line_number: int | None
+    operation: str
 
 Operation = Union[
     LinearMove, 
@@ -201,5 +230,7 @@ Operation = Union[
     VariableAssignment,
     CutterCompensation,
     ToolCompensation,
-    WorkCoordinate
+    WorkCoordinate,
+    LocalOffset,
+    CancelOffset
 ]
