@@ -7,59 +7,18 @@ from dialects.fanuc.ir_handler.mapping import COMMAND_CODES
 
 from dialects.fanuc.ir_handler.handler import FanucHandler
 
-LINE_NUMBER_PATTERN = re.compile(r'^N(\d+)\s*')
-COMMENT_PATTERN = re.compile(r'\((.*?)\)')
-# TOKEN_PATTERN = re.compile(r'([A-Z])(-?\d+\.?\d*)')
-# TOKEN_PATTERN = re.compile(r'([A-Z#])(#?-?\d+\.?\d*(?:=-?\d+\.?\d*)?)')
-TOKEN_PATTERN = re.compile(r'([A-Z#])(#\d+|\d+=-?\d+\.?\d*|-?\d+\.?\d*)')
+# LINE_NUMBER_PATTERN = re.compile(r'^N(\d+)\s*')
+# COMMENT_PATTERN = re.compile(r'\((.*?)\)')
+# self.TOKEN_PATTERN = re.compile(r'([A-Z])(-?\d+\.?\d*)')
+# self.TOKEN_PATTERN = re.compile(r'([A-Z#])(#?-?\d+\.?\d*(?:=-?\d+\.?\d*)?)')
+# self.TOKEN_PATTERN = re.compile(r'([A-Z#])(#\d+|\d+=-?\d+\.?\d*|-?\d+\.?\d*)')
 
 class FanucParser(Parser):
+    LINE_NUMBER_PATTERN = re.compile(r'^N(\d+)\s*')
+    COMMENT_PATTERN = re.compile(r'\((.*?)\)')
+    TOKEN_PATTERN = re.compile(r'([A-Z#])(#\d+|\d+=-?\d+\.?\d*|-?\d+\.?\d*)')
+
     """Parser: Num Text -> list[Operations]."""
-
-    def parse(self, text: str) -> list[Operation]:
-        program = self._parse_program(text)
-        return self._interpret_program(program)
-
-    # --- Step 1: texto -> Blocks (syntax) ---
-
-    def _tokenize(self, line: str) -> list[tuple[str, str]]:
-        return TOKEN_PATTERN.findall(line)
-
-    def _parse_line(self, raw_line: str) -> Block:
-        line = raw_line.strip()
-
-        comment = None
-        match = COMMENT_PATTERN.search(line)
-        if match:
-            comment = match.group(1)
-            line = COMMENT_PATTERN.sub('', line)
-
-        line_number = None
-        match = LINE_NUMBER_PATTERN.match(line)
-        if match:
-            line_number = int(match.group(1))
-            line = LINE_NUMBER_PATTERN.sub('', line)
-
-        tokens = self._tokenize(line)
-
-        words = []
-        for addr, val in tokens:
-            words.append(Word(address=addr, value=val))
-
-        return Block(
-            line_number=line_number,
-            words=words,
-            comment=comment,
-        )
-
-    def _parse_program(self, text: str) -> Program:
-        program = Program()
-        for raw_line in text.splitlines():
-            raw_line = raw_line.strip()
-            if not raw_line:
-                continue
-            program.blocks.append(self._parse_line(raw_line))
-        return program
 
     # --- Step 2: Blocks -> Operations (semantic) ---
 
@@ -78,7 +37,6 @@ class FanucParser(Parser):
                 operations.append(op)
 
         return operations
-
 
     def _interpret_program(self, program: Program) -> list[Operation]:
         state = ModalState()
