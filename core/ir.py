@@ -54,6 +54,15 @@ class WorkCoordinateSystem(Enum):
     G56 = "G56"
     G57 = "G57"
 
+class Plane(Enum):
+    XY = "xy"   # G17
+    ZX = "zx"   # G18
+    YZ = "yz"   # G19
+
+class ArcDirection(Enum):
+    CW = "cw"    # G2
+    CCW = "ccw"  # G3
+
 #? Syntax class
 
 @dataclass
@@ -89,13 +98,6 @@ class Block:
 @dataclass
 class Program:
     blocks: list[Block] = field(default_factory=list)
-
-@dataclass
-class HandlerContext:
-    command: str
-    value: str
-    state: ModalState
-    block: Block | None = None
 
 #? Actual state of the machine
 
@@ -173,6 +175,22 @@ class RapidMove:
     c: float | None = None
     wcs: WorkCoordinateSystem | None = None
 
+@dataclass
+class CircularMove:
+    """Arc to (x, y, z...). Centre as I/J/K (relative to the start point) OR radius R."""
+    direction: ArcDirection
+    x: float | None = None
+    y: float | None = None
+    z: float | None = None
+    b: float | None = None
+    c: float | None = None
+    i: float | None = None
+    j: float | None = None
+    k: float | None = None
+    r: float | None = None
+    feed: float | None = None
+    wcs: WorkCoordinateSystem | None = None
+
 # ! Recordar hacer esto con G52 es un local offset que se le suma al activo
 @dataclass
 class LocalOffset:
@@ -208,6 +226,10 @@ class ContourControlMode:
     tolerance: int | None = None
 
 @dataclass
+class PlaneSelection:
+    plane: Plane
+
+@dataclass
 class CancelOffset:
     pass
 
@@ -232,5 +254,6 @@ Operation = Union[
     ToolCompensation,
     WorkCoordinate,
     LocalOffset,
-    CancelOffset
+    CancelOffset,
+    PlaneSelection
 ]
