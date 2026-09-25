@@ -5,7 +5,7 @@ from dialects.base import UnsupportedOperation, Writer
 from dialects.num_grimme import mapping
 
 
-class NumWriter(Writer):
+class NumGrimmeWriter(Writer):
     MAPPING = mapping
 
     # In Grimme programs N numbers are jump labels (N1, N9980), not block numbering.
@@ -19,7 +19,7 @@ class NumWriter(Writer):
 
     # Work offset NPV-1 written with G501 (E6x001 parameters).
     # ! JOB DATA: these are the values of examples/num_grimme.xpi. Check them per part.
-    WORK_OFFSET = {"X": 0, "Y": -1100, "Z": 196700, "A": 0, "C": 0}
+    WORK_OFFSET = {"X": 0, "Y": 0, "Z": 206700, "A": 0, "C": 0}
 
 
     # Start / end sequence of the GRIMME machine (taken from examples/num_grimme.xpi).
@@ -37,7 +37,7 @@ class NumWriter(Writer):
             "G501",
             f"E60001= {e['X']}",
             f"E61001= {e['Y']}",
-            f"E62001= {e['Z']}",
+            f"E62001= {e['Z']} ",
             f"E66001= {e['A']}",
             f"E68001= {e['C']}",
             "G151 S0",
@@ -52,7 +52,14 @@ class NumWriter(Writer):
             "ENDV",
             "G79 [TOOL_L_T1]< 20 N9980",
             "G79 [TOOL_L_T2]< 20 N9990",
-            "(--- DEFAULT START, CHANGE PARAMETER IF REQUIRED ---)",
+            "(TC_end.txt)",
+            "S18000 M3 (DEFAULT VALUE, CHANGE IF REQUIRED)",
+            "G4 F2	(DWELL TIME)",
+            "G52 G17 G90 G0 Z650",
+            "G52 G17 G90 G0 X540",
+            "D1",
+            "G0 G54 G90 A-12.094 C60.625 ",
+            "(--- DEFAULT START ---)",
         ]
 
     def _program_footer(self) -> list[str]:
@@ -103,7 +110,7 @@ class NumWriter(Writer):
             return [g151, Word("S", "0")]
         if op.mode is ToolCompensationMode.TCP:
             return [g151, Word("EA", "0"), Word("EC", "0"), Word("EU", "0"),
-                    Word("T", str(self._active_tool)), Word("D", str(1))]
+                    Word("T", str(op.tool)), Word("D", str(1))]
 
         # Word("D", str(op.offset))
         raise UnsupportedOperation  # e.g. TCP without offset or without a tool change before

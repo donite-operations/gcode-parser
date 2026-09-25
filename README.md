@@ -13,12 +13,12 @@ core/ir.py              IR: operations, enums, ModalState (dialect-neutral)
 dialects/base.py        Parser + Writer base classes (all shared logic)
 dialects/fanuc/
     mapping.py          FANUC code -> IR meaning (parser AND writer use it)
-    parser.py           FanucParser  (inherits everything)
-    writer.py           FanucWriter  (inherits everything)
+    parser.py           FanucAresParser  (inherits everything)
+    writer.py           FanucAresWriter  (inherits everything)
 dialects/num/
     mapping.py          GRIMME NUM code -> IR meaning
-    parser.py           NumParser    (token syntax, G4 F, D, L variables)
-    writer.py           NumWriter    (number format, D, G4 F, cycles, L variables)
+    parser.py           NumGrimmeParser    (token syntax, G4 F, D, L variables)
+    writer.py           NumGrimmeWriter    (number format, D, G4 F, cycles, L variables)
 converter.py            convert() + dialect registry
 cli.py                  command line
 ```

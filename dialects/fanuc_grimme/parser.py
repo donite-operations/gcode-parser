@@ -12,14 +12,13 @@ from dialects.fanuc_ares import mapping
 
 class FanucAresParser(Parser):
     MAPPING = mapping
-    BEGIN_MARKERS = ("(--- files_x/freeJob_begin_end_files/5X_begin.txt ---)",)
-    END_MARKERS = ("(--- files_x/freeJob_begin_end_files/5X_end.txt ---)",)
+
     # G0G40G80G90 · #1=3000. · F#2 · Z-.5
     TOKEN_PATTERN = re.compile(r"([A-Z#])(#\d+|\d+=-?[\d.]+|-?(?:\d+\.?\d*|\.\d+))")
 
     G_HANDLERS = {
         **Parser.G_HANDLERS,
-        "TOOL_COMPENSATION": "_tool_compensation",
+        "TOOL_COMPENSATION": "_tcp",
         "DWELL": "_dwell",
         "CONTOUR_CONTROL": "_contour_control",
     }
@@ -43,7 +42,7 @@ class FanucAresParser(Parser):
             return LinearMove(**axes, feed=state.last_feed, wcs=state.wcs)
         return RapidMove(**axes, wcs=state.wcs)
 
-    def _tool_compensation(self, ctx, mode):
+    def _tcp(self, ctx, mode):
         """G43 H3 / G43.4 H3 / G49."""
         return ToolCompensation(mode=mode, offset=ctx.param("H"))
 

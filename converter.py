@@ -2,15 +2,15 @@
 """Orchestrates: source text --parser--> IR --writer--> target text."""
 from pathlib import Path
 
-from dialects.fanuc_ares.parser import FanucParser
-from dialects.fanuc_ares.writer import FanucWriter
-from dialects.num_grimme.parser import NumParser
-from dialects.num_grimme.writer import NumWriter
+from dialects.fanuc_ares.parser import FanucAresParser
+from dialects.fanuc_ares.writer import FanucAresWriter
+from dialects.num_grimme.parser import NumGrimmeParser
+from dialects.num_grimme.writer import NumGrimmeWriter
 
 # To add a dialect: create dialects/<name>/{mapping,parser,writer}.py and register it here.
 DIALECTS = {
-    "fanuc": (FanucParser, FanucWriter),
-    "num": (NumParser, NumWriter),
+    "fanuc-ares": (FanucAresParser, FanucAresWriter),
+    "num-grimme": (NumGrimmeParser, NumGrimmeWriter),
 }
 
 
@@ -39,10 +39,10 @@ def dump_ir(text: str, source_dialect: str, output: str | Path) -> None:
 if __name__ == "__main__":
     # Quick manual test: converts the examples into ./output
     jobs = [
-        ("examples/fanuc_ares.nc", "fanuc", "num", "output/fanuc_to_num.xpi"),
-        ("examples/fanuc_ares.nc", "fanuc", "fanuc", "output/fanuc_to_fanuc.nc"),
-        ("examples/num_grimme.xpi", "num", "fanuc", "output/num_to_fanuc.nc"),
-        ("examples/num_grimme.xpi", "num", "num", "output/num_to_num.xpi"),
+        ("examples/fanuc_ares.nc", "fanuc-ares", "num-grimme", "output/fanuc_to_num.xpi"),
+        ("examples/fanuc_ares.nc", "fanuc-ares", "fanuc-ares", "output/fanuc_to_fanuc.nc"),
+        ("examples/num_grimme.xpi", "num-grimme", "fanuc-ares", "output/num_to_fanuc.nc"),
+        ("examples/num_grimme.xpi", "num-grimme", "num-grimme", "output/num_to_num.xpi"),
     ]
     for source, src, dst, target in jobs:
         result = convert(read_file(source), src, dst)

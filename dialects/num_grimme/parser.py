@@ -10,9 +10,10 @@ from dialects.base import Parser, IR_AXES
 from dialects.num_grimme import mapping
 
 
-class NumParser(Parser):
+class NumGrimmeParser(Parser):
     MAPPING = mapping
-
+    BEGIN_MARKERS = ("( ------------- 5X BEGIN ----------- )",)
+    END_MARKERS = ("( ------- 5x END ------- )")
     # Two-letter addresses (EA, EC, EU, ER, EF...) and "E60001= 0" style assignments.
     TOKEN_PATTERN = re.compile(r"([A-Z]{1,2})(\d+\s*=\s*-?[\d.]+|-?(?:\d+\.?\d*|\.\d+))")
 
@@ -66,7 +67,7 @@ class NumParser(Parser):
 
         angles = [ctx.param(a) for a in ("EA", "EC", "EU")]
         if d is not None and all(a is None or float(a) == 0 for a in angles):
-            return ToolCompensation(mode=ToolCompensationMode.TCP, offset=d)
+            return ToolCompensation(mode=ToolCompensationMode.TCP, offset=d, tool=ctx.state.tool)
 
         return None
 
@@ -76,5 +77,5 @@ class NumParser(Parser):
         return Dwell(time=float(seconds)) if seconds is not None else None
 
     def _tool_correction(self, ctx, _):
-        """D<n>: NUM tool correction number. Inverse of what NumWriter writes for LENGTH."""
+        """D<n>: NUM tool correction number. Inverse of what NumGrimmeWriter writes for LENGTH."""
         return ToolCompensation(mode=ToolCompensationMode.LENGTH, offset=ctx.value)

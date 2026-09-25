@@ -42,7 +42,7 @@ class GCodes:
     }
 
     # G151 is ONE code for TCP on AND off; its words decide which
-    # (NumParser._tcp):  "G151 EA0 EC0 EU0 T1 D1" -> TCP on, offset D
+    # (NumGrimmeParser._tcp):  "G151 EA0 EC0 EU0 T1 D1" -> TCP on, offset D
     #                    "G151 S0"                -> TCP off
     # Same role as FANUC G43.4 H<n> / G49. Plain length correction is D<n> alone.
     TOOL_COMPENSATION = {"151": ToolCompensationMode.TCP}

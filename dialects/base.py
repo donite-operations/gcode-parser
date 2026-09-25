@@ -68,10 +68,19 @@ def mapping_tables(codes_cls) -> dict[str, dict]:
         if not name.startswith("_") and isinstance(table, dict)
     }
 
-
 def word_text(words: list[Word]) -> str:
     return " ".join(f"{word.address}{word.value}" for word in words)
 
+def normalize_marker(text: str) -> str:
+    """'( ------- 5x END ------- )' -> '5X END'."""
+    return " ".join(re.sub(r"[()\-]", " ", text).split()).upper()
+
+
+@dataclass
+class Sections:
+    header: list[list[Operation]]
+    body: list[list[Operation]]
+    footer: list[list[Operation]]
 
 # ================================================================ PARSER
 
@@ -158,6 +167,9 @@ class Parser(ABC):
             split_code(code): set(addresses)
             for code, addresses in getattr(self.MAPPING, "CODE_PARAMETERS", {}).items()
         }
+        self._begin_markers = {normalize_marker(m) for m in self.BEGIN_MARKERS}
+        self._end_markers = {normalize_marker(m) for m in self.END_MARKERS}
+
 
     def _build_dispatch(self, codes_cls, handlers: dict, skip=()) -> dict:
         """{normalized code: (handler, IR meaning)} built from the mapping tables."""
@@ -175,23 +187,35 @@ class Parser(ABC):
     # -------------------------------------------------- public API
 
     def parse(self, text: str) -> list[list[Operation]]:
+        return self.parse_sections(text).body
+
+    def parse_sections(self, text: str) -> Sections:
+        """Parse the whole program (the header may declare variables used by the body)
+        and split it into header / body / footer."""
         program = self._parse_program(text)
         state = ModalState()
-        operations = []
+        blocks: list[list[Operation]] = []
+        begin = end = None
         for line, block in enumerate(program.blocks, start=1):
-            block_operations = self._interpret_block(block, state, line)
-            if block_operations:
-                operations.append(block_operations)
-        return self._strip_program_frame(operations)
 
-    def _strip_program_frame(self, blocks: list[list[Operation]]) -> list[list[Operation]]:
-        """Remove the SOURCE machine's start and end sequence (reset, home moves,
-        program end). The target writer adds its own (_program_header/_program_footer),
-        so machine positions are never copied from one machine to another.
+            operations = self._interpret_block(block, state, line)
+            if operations:
+                blocks.append(operations)
 
-            start = every block before the first tool change
-            end   = every block after the last spindle stop / coolant off
-        If a marker is not found, nothing is removed on that side."""
+            marker = normalize_marker(block.comment) if block.comment else None
+            # Operations on a marker line belong to the body
+            if begin is None and marker in self._begin_markers:
+                begin = len(blocks)
+            if begin is not None and end is None and marker in self._end_markers:
+                end = len(blocks)
+
+        if begin is None or end is None:
+            begin, end = self._frame_bounds(blocks)
+        return Sections(blocks[:begin], blocks[begin:end], blocks[end:])
+
+    def _frame_bounds(self, blocks: list[list[Operation]]) -> tuple[int, int]:
+        """Fallback when the source has no markers:
+        body = first tool change .. last spindle stop / coolant off."""
         def has(block, check):
             return any(check(op) for op in block)
 
@@ -206,7 +230,7 @@ class Parser(ABC):
         last = max((i for i, b in enumerate(blocks) if has(b, ends_machining)), default=len(blocks) - 1)
         if last < first:
             last = len(blocks) - 1
-        return blocks[first:last + 1]
+        return first, last + 1
 
     # -------------------------------------------------- step 1: syntax
 
@@ -393,7 +417,9 @@ class Parser(ABC):
     # -------------------------------------------------- generic M handlers
 
     def _tool_change(self, ctx, _):
-        return ToolChange(tool_number=ctx.param("T"))  # T is universal (ISO 6983)
+        tool = ctx.param("T")
+        ctx.state.tool = tool
+        return ToolChange(tool_number=tool)
 
     def _spindle_control(self, ctx, direction):
         return SpindleControl(mode=direction)

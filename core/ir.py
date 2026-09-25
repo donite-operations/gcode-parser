@@ -110,6 +110,7 @@ class ModalState:
     wcs: WorkCoordinateSystem | None = None
     last_contour_tolerance: int | None = None
     variables: dict[int, float] = field(default_factory=dict)
+    tool: str | None = None
 
 #? Machine Operations
 
@@ -147,6 +148,7 @@ class CutterCompensation:
 class ToolCompensation:
     mode: ToolCompensationMode
     offset: str | None = None
+    tool: str | None = None
 
 @dataclass
 class SpindleSpeed:
