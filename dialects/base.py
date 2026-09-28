@@ -482,6 +482,13 @@ class Writer(ABC):
     # Order of words inside a line: N G <axes/params> F S T M (comment)
     WORD_ORDER = {"G": 0, "F": 2, "S": 3, "T": 4, "M": 5, "(": 6}
 
+    SAFETY_PREFIX = ""
+    SAFETY_SUFFIX = ""
+    SAFE_OUTPUT: dict[str, str] = {}
+    TOOL_CHANGE_SAFE_AXES: frozenset[str] = frozenset()
+    _AXIS_ORDER = ("x", "y", "z", "b", "c")
+    _at_safe: set[str]
+
     HANDLERS = {
         RapidMove: "_write_rapid_move",
         LinearMove: "_write_linear_move",

@@ -1,6 +1,6 @@
 # dialects/num/writer.py
 """IR -> GRIMME NUM text. Only what differs from the base (FANUC-style) writer."""
-from core.ir import CannedCycle, Dwell, ToolChange, ToolCompensation, ToolCompensationMode, VariableAssignment, Word
+from core.ir import WorkCoordinate, CannedCycle, Dwell, ToolChange, ToolCompensation, ToolCompensationMode, VariableAssignment, Word
 from dialects.base import UnsupportedOperation, Writer
 from dialects.num_grimme import mapping
 
@@ -99,6 +99,11 @@ class NumGrimmeWriter(Writer):
         words = super()._write_tool_change(op)
         self._active_tool = op.tool_number
         return words
+
+    def _write_wcs(self, op: WorkCoordinate) -> list[Word]:
+        word = self._g("WORK_COORDINATE_SYSTEM", self.MAPPING.GCodes.WORK_COORDINATE_SYSTEM.get("54"))
+        self.state.wcs = op.wcs
+        return [word]
 
     def _write_tool_comp(self, op: ToolCompensation) -> list[Word]:
         """D<n> = length correction ; G151 = TCP on / off (FANUC G43.4 H<n> / G49)."""

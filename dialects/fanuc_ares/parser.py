@@ -45,7 +45,7 @@ class FanucAresParser(Parser):
 
     def _tool_compensation(self, ctx, mode):
         """G43 H3 / G43.4 H3 / G49."""
-        return ToolCompensation(mode=mode, offset=ctx.param("H"))
+        return ToolCompensation(mode=mode, offset=ctx.param("H"), tool=ctx.state.tool)
 
     def _dwell(self, ctx, _):
         """G4 X<seconds> or G4 P<milliseconds>. IR Dwell.time is in seconds."""
