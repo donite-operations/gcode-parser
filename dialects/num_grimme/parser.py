@@ -13,9 +13,19 @@ from dialects.num_grimme import mapping
 class NumGrimmeParser(Parser):
     MAPPING = mapping
     BEGIN_MARKERS = ("( ------------- 5X BEGIN ----------- )",)
-    END_MARKERS = ("( ------- 5x END ------- )")
+    END_MARKERS = ("( ------- 5x END ------- )",)  # the comma makes it a tuple
     # Two-letter addresses (EA, EC, EU, ER, EF...) and "E60001= 0" style assignments.
     TOKEN_PATTERN = re.compile(r"([A-Z]{1,2})(\d+\s*=\s*-?[\d.]+|-?(?:\d+\.?\d*|\.\d+))")
+
+    # G52 moves recognised as SafetyPoint (any other G52 move -> NotIdentify)
+    # "G52 G17 G90 G0 Z650" / "... X540 Y-600 Z650 A0 C0" / "... X540" / "... X540 Y-600 A0 C0"
+    SAFE_POSITIONS = {
+        "x": {540},
+        "y": {-600},
+        "z": {650},
+        "b": {0},  # Grimme A axis (IR 'b')
+        "c": {0},
+    }
 
     # NUM-only syntax the IR cannot represent: kept whole as NotIdentify.
     RAW_LINE_PATTERNS = (

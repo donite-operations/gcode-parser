@@ -9,6 +9,12 @@ class FanucAresWriter(Writer):
     OMIT = set()
     PROGRAM_NUMBER = 1  # O1
 
+    # Safe position written for a SafetyPoint. Same values as the header/footer
+    # below (old post). New post (VT34 files) uses Z-125 / Z-100: change here if needed.
+    SAFETY_PREFIX = "G0 G53"
+    SAFE_POSITION = {"z": -250, "b": 0}
+    TOOL_CHANGE_SAFE_AXES = frozenset({"z", "b"})
+
     # Start / end sequence of the ARES machine (taken from examples/fanuc_ares.nc).
 
     def _program_header(self) -> list[str]:

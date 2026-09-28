@@ -17,6 +17,7 @@ Unknown things are never guessed: anything the mapping does not cover becomes a
 NotIdentifyOperation in the parser, or an "(UNMAPPED ...)" comment in the writer.
 """
 import re
+import warnings
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
@@ -28,7 +29,7 @@ from core.ir import (
     FeedRate, LinearMove, PlaneSelection, LocalOffset, ModalState, NotIdentifyOperation, Operation,
     Program, ProgramEnd, RapidMove, RotationMode, SpindleControl, SpindleDirection, SpindleSpeed,
     ToolChange, ToolCompensation, Unit, UnitMode, VariableAssignment, Word,
-    WorkCoordinate,
+    WorkCoordinate, SafetyPoint
 )
 
 IR_AXES = ("x", "y", "z", "b", "c")  # coordinate fields of LinearMove / RapidMove / LocalOffset
@@ -128,6 +129,14 @@ class Parser(ABC):
     # block as optional, so it must not be converted as a normal block.
     RAW_LINE_PATTERNS: tuple[re.Pattern, ...] = (re.compile(r"^/"),)
 
+    # Safety points: moves in MACHINE coordinates (FANUC G53 / NUM G52 = the
+    # CANCEL_OFFSET table of the mapping). Machine coordinates are not portable
+    # between machines, so they become SafetyPoint(axes) and the target writer
+    # writes ITS OWN safe position. Each machine parser defines:
+    SAFE_POSITIONS: dict[str, set[float]] = {}   # IR axis -> known safe values
+    SAFETY_EXTRA: dict[str, set[str]] = {}       # extra words allowed, e.g. ARES {"H": {"0"}}
+    SAFETY_ALLOWED_G: set[str] = {"0", "17", "90"}  # other G codes allowed in that line
+
     # Generic handlers: they only turn a code into an IR operation, without
     # reading dialect-specific words. Dialects extend these dicts.
     # (MOTION is special: always interpreted last, see _motion_operation.)
@@ -169,6 +178,8 @@ class Parser(ABC):
         }
         self._begin_markers = {normalize_marker(m) for m in self.BEGIN_MARKERS}
         self._end_markers = {normalize_marker(m) for m in self.END_MARKERS}
+        # Machine-coordinate codes: G53 on FANUC, G52 on NUM (both in CANCEL_OFFSET)
+        self._machine_frame = {normalize_code(c) for c in getattr(g_codes, "CANCEL_OFFSET", {})}
 
 
     def _build_dispatch(self, codes_cls, handlers: dict, skip=()) -> dict:
@@ -184,6 +195,45 @@ class Parser(ABC):
                 dispatch[normalize_code(code)] = (handler, meaning)
         return dispatch
 
+
+    def _safety_override(self, block: Block, line: int) -> list[Operation] | None:
+        """Machine-coordinate move -> [SafetyPoint], or [NotIdentifyOperation] if its
+        values are not a known safe position of this machine (never translated literally).
+        None = not a machine-coordinate move: keep the normal interpretation."""
+        words = block.words
+        if not any(w.address == "G" and normalize_code(w.value) in self._machine_frame for w in words):
+            return None
+
+        axes: set[str] = set()
+        has_axis, ok = False, True
+        for word in words:
+            code = normalize_code(word.value)
+            if word.address == "G":
+                if code not in self._machine_frame and code not in self.SAFETY_ALLOWED_G:
+                    ok = False
+            elif word.address in self._axes:
+                has_axis = True
+                axis = self._axes[word.address]
+                try:
+                    value = float(word.value)
+                except ValueError:  # e.g. a variable: not a fixed safe position
+                    ok = False
+                    continue
+                if any(abs(value - safe) < 1e-6 for safe in self.SAFE_POSITIONS.get(axis, ())):
+                    axes.add(axis)
+                else:
+                    ok = False
+            elif code not in self.SAFETY_EXTRA.get(word.address, ()):
+                ok = False
+
+        if not has_axis:
+            return None  # e.g. a lone "G53": moves nothing
+        if ok:
+            return [SafetyPoint(axes=frozenset(axes))]
+        warnings.warn(f"L{line}: machine-coordinate move is not a known safe position, not translated: "
+                      f"{word_text(words)}")
+        return [NotIdentifyOperation(line_number=line, operation=word_text(words))]
+
     # -------------------------------------------------- public API
 
     def parse(self, text: str) -> list[list[Operation]]:
@@ -198,7 +248,11 @@ class Parser(ABC):
         begin = end = None
         for line, block in enumerate(program.blocks, start=1):
 
-            operations = self._interpret_block(block, state, line)
+            operations = self._interpret_block(block, state, line)  # keeps the modal state (G0, G90...)
+            override = self._safety_override(block, line)
+            if override is not None:
+                operations = override
+
             if operations:
                 blocks.append(operations)
 
@@ -206,7 +260,8 @@ class Parser(ABC):
             # Operations on a marker line belong to the body
             if begin is None and marker in self._begin_markers:
                 begin = len(blocks)
-            if begin is not None and end is None and marker in self._end_markers:
+            # LAST end marker: with several operations the body must keep all of them
+            if begin is not None and marker in self._end_markers:
                 end = len(blocks)
 
         if begin is None or end is None:
@@ -482,12 +537,10 @@ class Writer(ABC):
     # Order of words inside a line: N G <axes/params> F S T M (comment)
     WORD_ORDER = {"G": 0, "F": 2, "S": 3, "T": 4, "M": 5, "(": 6}
 
-    SAFETY_PREFIX = ""
-    SAFETY_SUFFIX = ""
-    SAFE_OUTPUT: dict[str, str] = {}
-    TOOL_CHANGE_SAFE_AXES: frozenset[str] = frozenset()
-    _AXIS_ORDER = ("x", "y", "z", "b", "c")
-    _at_safe: set[str]
+    # Safety points (see Parser.SAFE_POSITIONS). Each machine writer defines:
+    SAFETY_PREFIX = ""                                  # e.g. "G0 G53" (ARES), "G52 G17 G90 G0" (Grimme)
+    SAFE_POSITION: dict[str, float] = {}                # IR axis -> its safe value on THIS machine
+    TOOL_CHANGE_SAFE_AXES: frozenset[str] = frozenset() # axes that must be safe before a tool change
 
     HANDLERS = {
         RapidMove: "_write_rapid_move",
@@ -529,15 +582,52 @@ class Writer(ABC):
     def reset(self) -> None:
         self.state = ModalState()
         self._next_n = self.line_number_start
+        self._at_safe: set[str] = set()  # axes at their safe position since the last move
 
     # -------------------------------------------------- public API
 
     def write(self, program: list[list[Operation]]) -> str:
         self.reset()
         header = [self._frame_line(line) for line in self._program_header()]
-        body = [self._write_block(block) for block in program]
+        body = [line for block in program for line in self._write_body_block(block)]
         footer = [self._frame_line(line) for line in self._program_footer()]
         return "\n".join(line for line in header + body + footer if line)
+
+    def _write_body_block(self, block: list[Operation]) -> list[str]:
+        """Normally one line. A SafetyPoint (or the safety moves this machine needs
+        before a tool change) can add lines."""
+        lines = []
+        if any(isinstance(op, ToolChange) for op in block):
+            lines += self._tool_change_safety()
+        if len(block) == 1 and isinstance(block[0], SafetyPoint):  # the parser leaves it alone in its block
+            return lines + self._write_safety_point(block[0])
+        if any(isinstance(op, (RapidMove, LinearMove, CircularMove)) for op in block):
+            self._at_safe = set()
+        return lines + [self._write_block(block)]
+
+    # -------------------------------------------------- safety points
+
+    def _write_safety_point(self, op: SafetyPoint) -> list[str]:
+        """SafetyPoint(axes) -> this machine's own safe position for those axes.
+        Axes without a safe position here are dropped (no line if none is left).
+        Z goes first on its own line: never move XY / rotaries before retracting."""
+        if not self.SAFE_POSITION:
+            raise NotImplementedError(f"{type(self).__name__} defines no SAFE_POSITION")
+        axes = [axis for axis in IR_AXES if axis in op.axes and axis in self.SAFE_POSITION]
+        self._at_safe |= set(axes)
+        groups = [["z"], [a for a in axes if a != "z"]] if "z" in axes else [axes]
+        return [self._safety_line(group) for group in groups if group]
+
+    def _safety_line(self, axes: list[str]) -> str:
+        coordinates = " ".join(f"{self.axes[a]}{self._fmt(self.SAFE_POSITION[a])}" for a in axes)
+        # The prefix contains G0: the next move must write its own G code again
+        self.state.active_g = self._code(self.G, "MOTION", RapidMove)
+        return self._frame_line(f"{self.SAFETY_PREFIX} {coordinates}")
+
+    def _tool_change_safety(self) -> list[str]:
+        """Safe axes this machine needs before a tool change that are not safe yet."""
+        missing = self.TOOL_CHANGE_SAFE_AXES - self._at_safe
+        return self._write_safety_point(SafetyPoint(axes=frozenset(missing))) if missing else []
 
     # -------------------------------------------------- machine start / end
 

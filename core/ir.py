@@ -244,6 +244,10 @@ class NotIdentifyOperation :
     line_number: int | None
     operation: str
 
+@dataclass
+class SafetyPoint:
+    axes: frozenset[str]   # ejes del IR: "x", "y", "z", "b", "c"
+
 Operation = Union[
     LinearMove, 
     RapidMove, 

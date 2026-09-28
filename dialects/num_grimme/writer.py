@@ -21,6 +21,12 @@ class NumGrimmeWriter(Writer):
     # ! JOB DATA: these are the values of examples/num_grimme.xpi. Check them per part.
     WORK_OFFSET = {"X": 0, "Y": 0, "Z": 206700, "A": 0, "C": 0}
 
+    # Safe position written for a SafetyPoint (same as the header/footer below).
+    # Before a tool change Grimme goes to the loading position X540 Y-600 Z650 A0 C0.
+    SAFETY_PREFIX = "G52 G17 G90 G0"
+    SAFE_POSITION = {"x": 540, "y": -600, "z": 650, "b": 0, "c": 0}
+    TOOL_CHANGE_SAFE_AXES = frozenset({"x", "y", "z", "b", "c"})
+
 
     # Start / end sequence of the GRIMME machine (taken from examples/num_grimme.xpi).
     # The G79 jumps of the header need the N9980 / N9990 labels of the footer:
