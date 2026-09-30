@@ -1,6 +1,6 @@
 # dialects/num/writer.py
 """IR -> GRIMME NUM text. Only what differs from the base (FANUC-style) writer."""
-from core.ir import WorkCoordinate, CannedCycle, Dwell, ToolChange, ToolCompensation, ToolCompensationMode, VariableAssignment, Word
+from core.ir import WorkCoordinate, CannedCycle, Dwell, ToolChange, ToolCompensation, ToolCompensationMode, VariableAssignment, Word, Corner, CornerType
 from dialects.base import UnsupportedOperation, Writer
 from dialects.num_grimme import mapping
 
@@ -22,10 +22,8 @@ class NumGrimmeWriter(Writer):
     WORK_OFFSET = {"X": 0, "Y": 0, "Z": 206700, "A": 0, "C": 0}
 
     # Safe position written for a SafetyPoint (same as the header/footer below).
-    # Before a tool change Grimme goes to the loading position X540 Y-600 Z650 A0 C0.
-    SAFETY_PREFIX = "G52 G17 G90 G0"
-    SAFE_POSITION = {"x": 540, "y": -600, "z": 650, "b": 0, "c": 0}
-    TOOL_CHANGE_SAFE_AXES = frozenset({"x", "y", "z", "b", "c"})
+    SAFETY_LINES = ["G52 G17 G90 G0 Z650", "G52 G17 G90 G0 X540", "D1"]
+    TOOL_CHANGE_LINES = ["G52 G17 G90 G0 Z650", "G52 G17 G90 G0 X540 Y-600 Z650 A0 C0"]  # loading position
 
 
     # Start / end sequence of the GRIMME machine (taken from examples/num_grimme.xpi).
@@ -64,7 +62,8 @@ class NumGrimmeWriter(Writer):
             "G52 G17 G90 G0 Z650",
             "G52 G17 G90 G0 X540",
             "D1",
-            "G0 G54 G90 A-12.094 C60.625 ",
+            # "G0 G54 G90 A-12.094 C60.625 ",
+            "G0 G54 G90 A0 C0",
             "(--- DEFAULT START ---)",
         ]
 
@@ -121,7 +120,7 @@ class NumGrimmeWriter(Writer):
             return [g151, Word("S", "0")]
         if op.mode is ToolCompensationMode.TCP:
             return [g151, Word("EA", "0"), Word("EC", "0"), Word("EU", "0"),
-                    Word("T", str(op.tool)), Word("D", str(1))]
+                    Word("T", str(1)), Word("D", str(1))]
 
         # Word("D", str(op.offset))
         raise UnsupportedOperation  # e.g. TCP without offset or without a tool change before
@@ -142,3 +141,10 @@ class NumGrimmeWriter(Writer):
     def _write_variable_assignment(self, op: VariableAssignment) -> list[Word]:
         self.state.variables[op.number] = op.value
         return [Word(f"L{op.number}", f"={self._fmt_variable(op.value)}")]
+
+    def _corner_words(self, corner: Corner | None) -> list[Word]:
+        """EB<n>: rounding radius (positive) or chamfer (negative)."""
+        if corner is None:
+            return []
+        size = corner.size if corner.type is CornerType.ROUND else -corner.size
+        return [Word("EB", self._fmt(size))]

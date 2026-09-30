@@ -63,6 +63,10 @@ class ArcDirection(Enum):
     CW = "cw"    # G2
     CCW = "ccw"  # G3
 
+class CornerType(Enum):
+    ROUND = "round"      # FANUC ,R   NUM EB+
+    CHAMFER = "chamfer"  # FANUC ,C   NUM EB-
+
 #? Syntax class
 
 @dataclass
@@ -167,6 +171,7 @@ class LinearMove:
     c: float | None = None
     feed: float | None = None
     wcs: WorkCoordinateSystem | None = None
+    corner: Corner | None = None
 
 @dataclass
 class RapidMove:
@@ -246,7 +251,14 @@ class NotIdentifyOperation :
 
 @dataclass
 class SafetyPoint:
-    axes: frozenset[str]   # ejes del IR: "x", "y", "z", "b", "c"
+    """Go to the machine's safe position. No coordinates: each writer writes its own lines."""
+
+@dataclass
+class Corner:
+    """Rounding / chamfer of the corner between a linear move and the NEXT one.
+    Not modal: it only applies to the move that carries it."""
+    type: CornerType
+    size: float  # always positive (radius or chamfer length)
 
 Operation = Union[
     LinearMove, 

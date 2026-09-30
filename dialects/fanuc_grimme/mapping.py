@@ -1,5 +1,6 @@
-# dialects/fanuc/mapping.py
-"""FANUC (ARES) codes -> IR meaning. Single source of truth for parser AND writer.
+# dialects/fanuc_grimme/mapping.py
+"""FANUC (GRIMME) codes -> IR meaning. Single source of truth for parser AND writer.
+Same codes as fanuc_ares/mapping.py, except the rotary axis (A instead of B) and M7.
 
 - Keys are written exactly as the writer emits them ("43.4", "5.1").
   The parser ignores leading zeros ("M06" matches "6").
@@ -11,7 +12,7 @@ from core.ir import (
     AbsoluteMode, CancelOffset, ContourControlMode, CoolantState,
     CutterCompensationMode, CycleType, Dwell, LinearMove, LocalOffset,
     ProgramEnd, RapidMove, RotationMode, SpindleDirection, ToolChange,
-    ToolCompensationMode, Unit, WorkCoordinateSystem,
+    ToolCompensationMode, Unit, WorkCoordinateSystem, CornerType
 )
 
 
@@ -66,6 +67,7 @@ class GCodes:
 
     PLANE = {"17": Plane.XY, "18": Plane.ZX, "19": Plane.YZ}
 
+
 class MCodes:
     TOOL_CHANGE = {"6": ToolChange}
 
@@ -75,25 +77,26 @@ class MCodes:
         "5": SpindleDirection.STOP,
     }
 
-    COOLANT = {"8": CoolantState.ON, "9": CoolantState.OFF}
+    COOLANT = {"7": CoolantState.ON, "8": CoolantState.ON, "9": CoolantState.OFF}  # Grimme uses M7
 
     PROGRAM_END = {"30": ProgramEnd, "2": ProgramEnd, "99": ProgramEnd}
 
 
-# Axis address -> IR field.
-AXES = {"X": "x", "Y": "y", "Z": "z", "B": "b", "C": "c"}
+# Axis address -> IR field. The IR has no 'a': Grimme's A axis is stored in 'b' (same as num_grimme).
+AXES = {"X": "x", "Y": "y", "Z": "z", "A": "b", "C": "c"}
 # Arc words (G2/G3) -> IR field. Only used when the active motion is an arc.
 ARC = {"I": "i", "J": "j", "K": "k", "R": "r"}
 # Words that belong to a code when both are in the same block. They are handed
 # to that code (ctx.params) and are never read as a move or as a command.
 _CYCLE_WORDS = {"X", "Y", "Z", "R", "Q", "P", "F", "K", "L"}
 
+CORNER = {",R": CornerType.ROUND, ",C": CornerType.CHAMFER}
 CODE_PARAMETERS = {
     "G4": {"P", "X"},
     "G5.1": {"Q", "R"},
     "G43": {"H"},
     "G43.4": {"H"},
-    "G52": {"X", "Y", "Z", "B", "C"},
+    "G52": {"X", "Y", "Z", "A", "C"},
     "G68": {"X", "Y", "Z", "I", "J", "K", "R"},
     **{f"G{n}": _CYCLE_WORDS for n in range(81, 90)},
     "M6": {"T"},

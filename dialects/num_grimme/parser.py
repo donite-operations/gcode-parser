@@ -3,8 +3,8 @@
 import re
 
 from core.ir import (
-    ArcDirection, CircularMove, Dwell, LinearMove, RapidMove, ToolCompensation, ToolCompensationMode,
-    LocalOffset
+    ArcDirection, CircularMove, Dwell, FeedRate, LinearMove, RapidMove, ToolCompensation, ToolCompensationMode,
+    LocalOffset, Corner, CornerType
     )
 from dialects.base import Parser, IR_AXES
 from dialects.num_grimme import mapping
@@ -14,18 +14,18 @@ class NumGrimmeParser(Parser):
     MAPPING = mapping
     BEGIN_MARKERS = ("( ------------- 5X BEGIN ----------- )",)
     END_MARKERS = ("( ------- 5x END ------- )",)  # the comma makes it a tuple
-    # Two-letter addresses (EA, EC, EU, ER, EF...) and "E60001= 0" style assignments.
-    TOKEN_PATTERN = re.compile(r"([A-Z]{1,2})(\d+\s*=\s*-?[\d.]+|-?(?:\d+\.?\d*|\.\d+))")
+    # Two-letter addresses (EA, EC, EU, ER, EF, FL...) and "E60001= 0" style assignments.
+    # The value is optional: in NUM "G1 X" means X0.
+    TOKEN_PATTERN = re.compile(r"([A-Z]{1,2})(\d+\s*=\s*[-+]?[\d.]+|[-+]?(?:\d+\.?\d*|\.\d+))?")
 
-    # G52 moves recognised as SafetyPoint (any other G52 move -> NotIdentify)
-    # "G52 G17 G90 G0 Z650" / "... X540 Y-600 Z650 A0 C0" / "... X540" / "... X540 Y-600 A0 C0"
-    SAFE_POSITIONS = {
-        "x": {540},
-        "y": {-600},
-        "z": {650},
-        "b": {0},  # Grimme A axis (IR 'b')
-        "c": {0},
-    }
+    SAFETY_LINES = (
+        "G52 G17 G90 G0 Z650",
+        "G52 G17 G90 G0 X540",
+        "G52 G17 G90 G0 X540 Y-600 Z650 A0 C0",
+        "G52 G17 G90 G0 X540 Y-600 A0 C0",
+        "G52 G17 G90 G0 Z500",                   # Plate_NUM_GRIMME.XPI
+        "G52 G17 G90 G0 X500 Y-400 Z500 A0 C0",
+    )
 
     # NUM-only syntax the IR cannot represent: kept whole as NotIdentify.
     RAW_LINE_PATTERNS = (
@@ -45,7 +45,29 @@ class NumGrimmeParser(Parser):
         **Parser.ADDRESS_HANDLERS,
         "L": "_variable_assignment",
         "D": "_tool_correction",
+        "FL": "_feed_from_variable",
     }
+
+    def _number(self, raw, state):
+        """An address without value is 0: 'G1 X EB-10' -> X0, 'G2 X Y I50 J' -> X0 Y0 J0."""
+        return float(raw) if raw else 0.0
+
+    def _corner(self, words, state):
+        """EB20 -> rounding of radius 20 ; EB-10 -> chamfer of 10 (the sign gives the type)."""
+        if len(words) != 1:
+            return None
+        size = self._number(words[0].value, state)
+        if not size:  # EB0 / EB without value: nothing to round
+            return None
+        return Corner(type=CornerType.ROUND if size > 0 else CornerType.CHAMFER, size=abs(size))
+
+    def _feed_from_variable(self, ctx, _):
+        """FL<n>: feed = value of variable L<n> ('L1 = 2000' ... 'G1 Z-7 FL1' -> F2000)."""
+        value = ctx.state.variables.get(int(ctx.value))
+        if value is None:
+            return None
+        ctx.state.last_feed = value
+        return FeedRate(value=value)
 
     def _motion(self, kind, axes, arc, state):
         if isinstance(kind, ArcDirection):

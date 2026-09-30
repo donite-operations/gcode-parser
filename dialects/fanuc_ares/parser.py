@@ -15,15 +15,16 @@ class FanucAresParser(Parser):
     BEGIN_MARKERS = ("(--- files_x/freeJob_begin_end_files/5X_begin.txt ---)",)
     END_MARKERS = ("(--- files_x/freeJob_begin_end_files/5X_end.txt ---)",)
     # G0G40G80G90 · #1=3000. · F#2 · Z-.5
-    TOKEN_PATTERN = re.compile(r"([A-Z#])(#\d+|\d+=-?[\d.]+|-?(?:\d+\.?\d*|\.\d+))")
+    # TOKEN_PATTERN = re.compile(r"([A-Z#])(#\d+|\d+=-?[\d.]+|-?(?:\d+\.?\d*|\.\d+))")
+    TOKEN_PATTERN = re.compile(r"(,?[A-Z#])(#\d+|\d+=-?[\d.]+|-?(?:\d+\.?\d*|\.\d+))")
 
-    # G53 moves recognised as SafetyPoint (any other G53 move -> NotIdentify)
-    SAFE_POSITIONS = {
-        "z": {-125, -100,   # new post:  G53 G90 G00 Z-125 H0 / G53 Z-100.
-              -250, 0},     # old post:  G0 G53 Z-250 / G0 G53 Z0.
-        "b": {0},           # old post:  G0 G53 B0
-    }
-    SAFETY_EXTRA = {"H": {"0"}}  # "G53 G90 G00 Z-125 H0"
+    SAFETY_LINES = (
+        "G53 G90 G00 Z-125 H0",  # new post (VT34 files)
+        "G53 Z-100.",
+        "G0 G53 Z-250",          # old post (fanuc_ares.nc)
+        "G0 G53 B0",
+        "G0 G53 Z0.",
+    )
 
     G_HANDLERS = {
         **Parser.G_HANDLERS,

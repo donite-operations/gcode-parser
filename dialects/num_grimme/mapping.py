@@ -22,7 +22,7 @@ from core.ir import (
     AbsoluteMode, CancelOffset, CoolantState,
     CutterCompensationMode, CycleType, Dwell, LinearMove, ProgramEnd,
     RapidMove, SpindleDirection, ToolChange, ToolCompensationMode, Unit,
-    WorkCoordinateSystem, LocalOffset
+    WorkCoordinateSystem, LocalOffset, CornerType
 )
 
 
@@ -98,6 +98,8 @@ ARC = {"I": "i", "J": "j", "K": "k", "R": "r"}
 
 # Every word the manual lists for G81-G89 (so they stay with their cycle).
 _CYCLE_WORDS = {"X", "Y", "Z", "ER", "EH", "EF", "P", "ES", "Q", "EP", "K", "EK", "EC", "EA", "F"}
+
+CORNER = {"EB": CornerType.ROUND}
 
 CODE_PARAMETERS = {
     "G4": {"F"},  # G4 F2 -> F is the dwell time, NOT a feed rate

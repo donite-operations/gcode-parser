@@ -29,7 +29,7 @@ from core.ir import (
     FeedRate, LinearMove, PlaneSelection, LocalOffset, ModalState, NotIdentifyOperation, Operation,
     Program, ProgramEnd, RapidMove, RotationMode, SpindleControl, SpindleDirection, SpindleSpeed,
     ToolChange, ToolCompensation, Unit, UnitMode, VariableAssignment, Word,
-    WorkCoordinate, SafetyPoint
+    WorkCoordinate, SafetyPoint, Corner, CornerType
 )
 
 IR_AXES = ("x", "y", "z", "b", "c")  # coordinate fields of LinearMove / RapidMove / LocalOffset
@@ -133,9 +133,7 @@ class Parser(ABC):
     # CANCEL_OFFSET table of the mapping). Machine coordinates are not portable
     # between machines, so they become SafetyPoint(axes) and the target writer
     # writes ITS OWN safe position. Each machine parser defines:
-    SAFE_POSITIONS: dict[str, set[float]] = {}   # IR axis -> known safe values
-    SAFETY_EXTRA: dict[str, set[str]] = {}       # extra words allowed, e.g. ARES {"H": {"0"}}
-    SAFETY_ALLOWED_G: set[str] = {"0", "17", "90"}  # other G codes allowed in that line
+    SAFETY_LINES: tuple[str, ...] = ()
 
     # Generic handlers: they only turn a code into an IR operation, without
     # reading dialect-specific words. Dialects extend these dicts.
@@ -180,6 +178,8 @@ class Parser(ABC):
         self._end_markers = {normalize_marker(m) for m in self.END_MARKERS}
         # Machine-coordinate codes: G53 on FANUC, G52 on NUM (both in CANCEL_OFFSET)
         self._machine_frame = {normalize_code(c) for c in getattr(g_codes, "CANCEL_OFFSET", {})}
+        self._safety_keys = {self._words_key(self._parse_line(line)) for line in self.SAFETY_LINES}
+        self._corner_types: dict[str, CornerType] = getattr(self.MAPPING, "CORNER", {})  # ",R" -> ROUND
 
 
     def _build_dispatch(self, codes_cls, handlers: dict, skip=()) -> dict:
@@ -195,45 +195,24 @@ class Parser(ABC):
                 dispatch[normalize_code(code)] = (handler, meaning)
         return dispatch
 
+    @staticmethod
+    def _words_key(block: Block) -> frozenset:
+        """Words of a line, ignoring order, N and comments: 'G0 G53 Z-250.' == 'G53 G0 Z-250'."""
+        return frozenset((w.address, normalize_code(w.value)) for w in block.words)
 
     def _safety_override(self, block: Block, line: int) -> list[Operation] | None:
-        """Machine-coordinate move -> [SafetyPoint], or [NotIdentifyOperation] if its
-        values are not a known safe position of this machine (never translated literally).
-        None = not a machine-coordinate move: keep the normal interpretation."""
-        words = block.words
-        if not any(w.address == "G" and normalize_code(w.value) in self._machine_frame for w in words):
-            return None
+        """Known safety line -> [SafetyPoint].
+        Any other move in machine coordinates (G53 / NUM G52) -> NotIdentify: never translated literally.
+        None = normal line."""
+        if block.words and self._words_key(block) in self._safety_keys:
+            return [SafetyPoint()]
 
-        axes: set[str] = set()
-        has_axis, ok = False, True
-        for word in words:
-            code = normalize_code(word.value)
-            if word.address == "G":
-                if code not in self._machine_frame and code not in self.SAFETY_ALLOWED_G:
-                    ok = False
-            elif word.address in self._axes:
-                has_axis = True
-                axis = self._axes[word.address]
-                try:
-                    value = float(word.value)
-                except ValueError:  # e.g. a variable: not a fixed safe position
-                    ok = False
-                    continue
-                if any(abs(value - safe) < 1e-6 for safe in self.SAFE_POSITIONS.get(axis, ())):
-                    axes.add(axis)
-                else:
-                    ok = False
-            elif code not in self.SAFETY_EXTRA.get(word.address, ()):
-                ok = False
-
-        if not has_axis:
-            return None  # e.g. a lone "G53": moves nothing
-        if ok:
-            return [SafetyPoint(axes=frozenset(axes))]
-        warnings.warn(f"L{line}: machine-coordinate move is not a known safe position, not translated: "
-                      f"{word_text(words)}")
-        return [NotIdentifyOperation(line_number=line, operation=word_text(words))]
-
+        machine_coords = any(w.address == "G" and normalize_code(w.value) in self._machine_frame for w in block.words)
+        moves = any(w.address in self._axes for w in block.words)
+        if machine_coords and moves:
+            warnings.warn(f"L{line}: unknown machine-coordinate move, not translated: {word_text(block.words)}")
+            return [NotIdentifyOperation(line_number=line, operation=word_text(block.words))]
+        return None
     # -------------------------------------------------- public API
 
     def parse(self, text: str) -> list[list[Operation]]:
@@ -253,7 +232,8 @@ class Parser(ABC):
             if override is not None:
                 operations = override
 
-            if operations:
+            repeated_safety = operations == [SafetyPoint()] and blocks and blocks[-1] == operations
+            if operations and not repeated_safety:
                 blocks.append(operations)
 
             marker = normalize_marker(block.comment) if block.comment else None
@@ -330,6 +310,7 @@ class Parser(ABC):
         unknown: list[str] = []
         axis_words: list[Word] = []
         arc_words: list[Word] = []
+        corner_words: list[Word] = []
         motion_code = None
 
         for i, word in enumerate(words):
@@ -340,6 +321,9 @@ class Parser(ABC):
                 continue
             if word.address in self._arc:
                 arc_words.append(word)  # I J K R: only valid if the motion is an arc
+                continue
+            if word.address in self._corner_types:
+                corner_words.append(word)  # ,R ,C / EB: only valid on a linear move
                 continue
             if word.address == "G" and normalize_code(word.value) in self._motion_codes:
                 motion_code = normalize_code(word.value)
@@ -357,7 +341,7 @@ class Parser(ABC):
             else:
                 operations.append(operation)
 
-        motion, unused = self._motion_operation(motion_code, axis_words, arc_words, state)
+        motion, unused = self._motion_operation(motion_code, axis_words, arc_words, corner_words, state)
         if motion is not None:
             operations.append(motion)
         if unused:
@@ -403,14 +387,14 @@ class Parser(ABC):
 
     # -------------------------------------------------- motion
 
-    def _motion_operation(self, code, axis_words, arc_words, state):
+    def _motion_operation(self, code, axis_words, arc_words, corner_words, state):
         """Modal bookkeeping (generic): which motion applies to this block.
         Building the IR move is up to the dialect (_motion).
         Returns (operation or None, words that could not be used)."""
         if code is not None:
             state.active_g = code
         elif not axis_words:
-            return None, arc_words  # e.g. a lone R5: nothing to move
+            return None, arc_words + corner_words  # e.g. a lone R5: nothing to move
 
         kind = self._motion_codes.get(state.active_g)  # RapidMove / LinearMove / ArcDirection.CW...
         is_arc = isinstance(kind, ArcDirection)
@@ -419,11 +403,30 @@ class Parser(ABC):
         unused_arc = [] if is_arc else arc_words  # I/J/K/R without an arc -> unknown
 
         if kind is None or None in axes.values() or None in arc.values():
-            return None, axis_words + arc_words
+            return None, axis_words + arc_words + corner_words
         motion = self._motion(kind, axes, arc, state)
         if motion is None:
-            return None, axis_words + arc_words
-        return motion, unused_arc
+            return None, axis_words + arc_words + corner_words
+
+        # Corner (not modal: only this block). Only a linear move can carry it.
+        unused_corner = []
+        if corner_words:
+            corner = self._corner(corner_words, state) if isinstance(motion, LinearMove) else None
+            if corner is None:
+                unused_corner = corner_words
+            else:
+                motion.corner = corner
+        return motion, unused_arc + unused_corner
+
+    def _corner(self, words: list[Word], state: ModalState) -> Corner | None:
+        """FANUC ',R20' / ',C10' -> Corner. None = cannot be represented -> NotIdentify.
+        Dialects with another syntax (NUM EB) override it."""
+        if len(words) != 1:
+            return None
+        size = self._number(words[0].value, state)
+        if size is None or size <= 0:
+            return None
+        return Corner(type=self._corner_types[words[0].address], size=size)
 
     @abstractmethod
     def _motion(self, kind, axes: dict[str, float], arc: dict[str, float], state: ModalState) -> Operation | None:
@@ -500,8 +503,11 @@ class Parser(ABC):
     def _variable_assignment(self, ctx, _):
         """'<n>=<value>' -> VariableAssignment. Registered by each dialect with its
         own address (FANUC '#1=3000.', NUM 'L1=3000.')."""
-        number, value = ctx.value.split("=", 1)
-        number, value = int(number), float(value)
+        number, _, value = ctx.value.partition("=")
+        try:
+            number, value = int(number), float(value)
+        except ValueError:
+            return None  # e.g. '#5=#5-1': an expression, not a value -> NotIdentify
         ctx.state.variables[number] = value
         return VariableAssignment(number=number, value=value)
 
@@ -538,9 +544,9 @@ class Writer(ABC):
     WORD_ORDER = {"G": 0, "F": 2, "S": 3, "T": 4, "M": 5, "(": 6}
 
     # Safety points (see Parser.SAFE_POSITIONS). Each machine writer defines:
-    SAFETY_PREFIX = ""                                  # e.g. "G0 G53" (ARES), "G52 G17 G90 G0" (Grimme)
-    SAFE_POSITION: dict[str, float] = {}                # IR axis -> its safe value on THIS machine
-    TOOL_CHANGE_SAFE_AXES: frozenset[str] = frozenset() # axes that must be safe before a tool change
+    SAFETY_LINES: tuple[str, ...] = ()
+    SAFETY_LINES: list[str] = []
+    TOOL_CHANGE_LINES: list[str] = []
 
     HANDLERS = {
         RapidMove: "_write_rapid_move",
@@ -578,6 +584,7 @@ class Writer(ABC):
         self.axes = invert(self.MAPPING.AXES)  # IR field -> address, e.g. 'b' -> 'A' on NUM
         self.arc = invert(getattr(self.MAPPING, "ARC", {}))  # 'i' -> 'I' ...
         self.reset()
+        self.corner = invert(getattr(self.MAPPING, "CORNER", {}))  # CornerType.ROUND -> ',R'
 
     def reset(self) -> None:
         self.state = ModalState()
@@ -594,16 +601,20 @@ class Writer(ABC):
         return "\n".join(line for line in header + body + footer if line)
 
     def _write_body_block(self, block: list[Operation]) -> list[str]:
-        """Normally one line. A SafetyPoint (or the safety moves this machine needs
-        before a tool change) can add lines."""
+        """One line per block. A SafetyPoint is replaced by this machine's SAFETY_LINES,
+        and every tool change is preceded by its TOOL_CHANGE_LINES."""
+        if block == [SafetyPoint()]:
+            return self._safety_lines(self.SAFETY_LINES)
         lines = []
         if any(isinstance(op, ToolChange) for op in block):
-            lines += self._tool_change_safety()
-        if len(block) == 1 and isinstance(block[0], SafetyPoint):  # the parser leaves it alone in its block
-            return lines + self._write_safety_point(block[0])
-        if any(isinstance(op, (RapidMove, LinearMove, CircularMove)) for op in block):
-            self._at_safe = set()
+            lines = self._safety_lines(self.TOOL_CHANGE_LINES)
         return lines + [self._write_block(block)]
+
+    def _safety_lines(self, lines: list[str]) -> list[str]:
+        if not lines:
+            raise NotImplementedError(f"{type(self).__name__} defines no SAFETY_LINES / TOOL_CHANGE_LINES")
+        self.state.active_g = None  # these lines contain G0: the next move must write its G again
+        return [self._frame_line(line) for line in lines]
 
     # -------------------------------------------------- safety points
 
@@ -747,7 +758,17 @@ class Writer(ABC):
         return self._motion_words(op, RapidMove)
 
     def _write_linear_move(self, op: LinearMove) -> list[Word]:
-        return self._motion_words(op, LinearMove) + self._feed_words(op.feed)
+        return self._motion_words(op, LinearMove) + self._corner_words(op.corner) + self._feed_words(op.feed)
+
+    def _corner_words(self, corner: Corner | None) -> list[Word]:
+        """FANUC ',R20.' / ',C10.'. If this machine has no code for it, the move is kept
+        and the corner is flagged in a comment (the corner would be lost silently otherwise)."""
+        if corner is None:
+            return []
+        address = self.corner.get(corner.type)
+        if address is None:
+            return [self._comment(f"UNMAPPED Corner {corner.type.name} {self._fmt(corner.size)}")]
+        return [Word(address, self._fmt(corner.size))]
 
     def _write_circular_move(self, op: CircularMove) -> list[Word]:
         words = self._motion_words(op, op.direction)
@@ -760,6 +781,7 @@ class Writer(ABC):
     def _write_tool_change(self, op: ToolChange) -> list[Word]:
         change = self._m("TOOL_CHANGE", ToolChange)
         tool = [] if op.tool_number is None else [Word("T", str(op.tool_number))]
+
         return tool + [change]
 
     def _write_spindle_control(self, op: SpindleControl) -> list[Word]:
