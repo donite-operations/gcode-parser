@@ -1,8 +1,11 @@
 # dialects/fanuc/writer.py
 """IR -> FANUC (ARES) text. Everything FANUC-specific lives here."""
-from dialects.base import Writer
+from dialects.base import Writer, TOOL_COMMENT
 from dialects.fanuc_ares import mapping
 
+from core.ir import (
+    ToolChange, Word, ToolCompensation
+)
 
 class FanucAresWriter(Writer):
     MAPPING = mapping
@@ -31,7 +34,7 @@ class FanucAresWriter(Writer):
             "G0 G53 Z-250 (sP_TC.txt)",
             "G0 G53 B0",
             "G0 G53 Z-250",
-            "T3 M6 (DEFAULT VALUE CHANGE IF REQUIRED)"
+            f"T20 M6 (DEFAULT VALUE CHANGE IF REQUIRED - {TOOL_COMMENT})" 
         ]
 
         sp = [
@@ -40,6 +43,7 @@ class FanucAresWriter(Writer):
             "G0 G53 Z-250",
             "S16000 M3 (DEFAULT VALUE CHANGE IF REQUIRED)",
             "M8 (DEFAULT VALUE CHANGE IF REQUIRED)",
+            "G5.1Q1R5",
             "(--- DEFAULT START ---)",
         ]
 
@@ -54,3 +58,16 @@ class FanucAresWriter(Writer):
             "M99",
             "%",
         ]
+
+    def _write_tool_change(self, op: ToolChange) -> list[Word]:
+        change = self._m("TOOL_CHANGE", ToolChange)
+        tool = [] if op.tool_number is None else [Word("T", str(op.tool_number))]
+        comment = [] if not op.comment else [Word("(", f"{op.comment})")]
+        return tool + [change] + comment
+
+    def _write_tool_comp(self, op: ToolCompensation) -> list[Word]:
+        words = [self._g("TOOL_COMPENSATION", op.mode)]
+        if op.offset is not None:
+            words.append(Word("H", str(20)))
+
+        return words

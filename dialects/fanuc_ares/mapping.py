@@ -32,7 +32,7 @@ class GCodes:
 
     TOOL_COMPENSATION = {
         "49": ToolCompensationMode.OFF,
-        "43": ToolCompensationMode.LENGTH,
+        # "43": ToolCompensationMode.LENGTH,
         "43.4": ToolCompensationMode.TCP,  # ! TCP code depends on the control (G43.4 / G43.5)
     }
 

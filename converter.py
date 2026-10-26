@@ -10,12 +10,45 @@ from dialects.fanuc_grimme.writer import FanucGrimmeWriter
 from dialects.num_grimme.parser import NumGrimmeParser
 from dialects.num_grimme.writer import NumGrimmeWriter
 
+import math
+
+
 # To add a dialect: create dialects/<name>/{mapping,parser,writer}.py and register it here.
 DIALECTS = {
     "fanuc-ares": (FanucAresParser, FanucAresWriter),
     "num-grimme": (NumGrimmeParser, NumGrimmeWriter),
     "fanuc-grimme": (FanucGrimmeParser, FanucGrimmeWriter),
 }
+
+ROTARY_LIMITS = {
+    "fanuc-ares": {"c": (-270.0, 270.0), "b": (-120.0, 120.0)},
+}
+
+def fit_rotary(program: list[list[Operation]], limits: dict) -> None:
+    """Moves C into the machine's range without changing where the tool points.
+    C + 360 is the same orientation; C + 180 with -B too (head tilting the other way).
+    One shift for the whole program, so no rewind is needed."""
+    moves = [op for block in program for op in block
+             if isinstance(op, (RapidMove, LinearMove, CircularMove))]
+    cs = [op.c for op in moves if op.c is not None]
+    if not cs:
+        return
+    lo, hi = limits["c"]
+    b_lo, b_hi = limits.get("b", (0.0, 0.0))
+    step = 180 if "b" in limits else 360
+    ks = range(math.ceil((lo - min(cs)) / step), math.floor((hi - max(cs)) / step) + 1)
+    for shift in sorted((k * step for k in ks), key=abs):   # smallest change first
+        flip = shift % 360 != 0
+        if flip and not all(b_lo <= -op.b <= b_hi for op in moves if op.b is not None):
+            continue
+        for op in moves:
+            if op.c is not None:
+                op.c += shift
+            if flip and op.b is not None:
+                op.b = 0.0 - op.b   # 0.0 - x avoids writing B-0.
+        return
+    raise ValueError(f"C goes from {min(cs):.3f} to {max(cs):.3f} (more than one turn): "
+                     f"it does not fit in {lo}..{hi} without a rewind between cuts")
 
 
 # ---------------------------------------------------------------- rotary axes
@@ -76,6 +109,11 @@ def convert(text: str, source_dialect: str, target_dialect: str) -> str:
     if rotary_rule:
         # The header too: the last B/C (A/C) set there is still active in the body
         convert_rotary(sections.header + sections.body, rotary_rule)
+
+    limits = ROTARY_LIMITS.get(target_dialect)
+
+    if limits:
+        fit_rotary(sections.body, limits)
     return writer_cls().write(sections.body)
 
 
@@ -102,13 +140,22 @@ if __name__ == "__main__":
         ("examples/Plate_NUM_GRIMME.XPI", "num-grimme"),
         ("examples/Platte_FANUC_GRIMME.nc", "fanuc-grimme"),
         ("examples/WRIGHTBUS PMF-00224.nc", "fanuc-ares"),
-        ("examples/XL02-05-029-03-P-REV-C.nc", "fanuc-ares")
+        ("examples/XL02-05-029-03-P-REV-C.nc", "fanuc-ares"),
+        ("examples/403-P1763-TrimTool.xpi", "num-grimme"),
+        ("examples/0022613-2 Rev-B.xpi", "num-grimme"),
+        ("examples/0022613-1 Rev-B.xpi", "num-grimme"),
+        ("examples/PCG-02129-Rev-1.xpi", "num-grimme")
     ]
+
+    examples = [
+        ("examples/400_V4521 trim_Grimme.xpi", "num-grimme"),
+    ]
+
     extension = {"fanuc-ares": "nc", "fanuc-grimme": "nc", "num-grimme": "xpi"}
 
     for source, src in examples:
         for dst in DIALECTS:
-            target = f"output/{Path(source).stem}_to_{dst}.{extension[dst]}"
+            target = f"test/{Path(source).stem}_to_{dst}.{extension[dst]}"
             result = convert(read_file(source), src, dst)
             write_file(target, result)
             unmapped = result.count("UNMAPPED")

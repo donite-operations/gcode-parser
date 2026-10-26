@@ -135,6 +135,7 @@ class VariableAssignment:
 @dataclass
 class ToolChange:
     tool_number: str
+    comment: str
 
 @dataclass
 class SpindleControl:

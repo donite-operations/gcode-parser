@@ -35,6 +35,7 @@ from core.ir import (
 IR_AXES = ("x", "y", "z", "b", "c")  # coordinate fields of LinearMove / RapidMove / LocalOffset
 RAW = "RAW"                          # address of a whole line the IR cannot represent
 
+TOOL_COMMENT = ""
 
 # ---------------------------------------------------------------- helpers
 
@@ -180,7 +181,7 @@ class Parser(ABC):
         self._machine_frame = {normalize_code(c) for c in getattr(g_codes, "CANCEL_OFFSET", {})}
         self._safety_keys = {self._words_key(self._parse_line(line)) for line in self.SAFETY_LINES}
         self._corner_types: dict[str, CornerType] = getattr(self.MAPPING, "CORNER", {})  # ",R" -> ROUND
-
+        self._tooling_comment: str = ""
 
     def _build_dispatch(self, codes_cls, handlers: dict, skip=()) -> dict:
         """{normalized code: (handler, IR meaning)} built from the mapping tables."""
@@ -244,7 +245,8 @@ class Parser(ABC):
             if begin is not None and marker in self._end_markers:
                 end = len(blocks)
 
-        if begin is None or end is None:
+        # if begin is None or end is None:
+        if True:
             begin, end = self._frame_bounds(blocks)
         return Sections(blocks[:begin], blocks[begin:end], blocks[end:])
 
@@ -257,11 +259,14 @@ class Parser(ABC):
         def is_tool_change(op):
             return isinstance(op, ToolChange)
 
+        def is_spindle_speed(op):
+            return isinstance(op, SpindleSpeed)
+
         def ends_machining(op):
             return (isinstance(op, SpindleControl) and op.mode is SpindleDirection.STOP) or \
                    (isinstance(op, CoolantControl) and op.mode is CoolantState.OFF)
 
-        first = next((i for i, b in enumerate(blocks) if has(b, is_tool_change)), 0)
+        first = next((i for i, b in enumerate(blocks) if has(b, is_spindle_speed)), 0)
         last = max((i for i, b in enumerate(blocks) if has(b, ends_machining)), default=len(blocks) - 1)
         if last < first:
             last = len(blocks) - 1
@@ -477,7 +482,9 @@ class Parser(ABC):
     def _tool_change(self, ctx, _):
         tool = ctx.param("T")
         ctx.state.tool = tool
-        return ToolChange(tool_number=tool)
+        self._tooling_comment = ctx.block.comment
+
+        return ToolChange(tool_number=tool, comment=ctx.block.comment)
 
     def _spindle_control(self, ctx, direction):
         return SpindleControl(mode=direction)
@@ -665,6 +672,8 @@ class Writer(ABC):
         seen: set[tuple[str, str]] = set()
         for operation in block:
             for word in self._dispatch_words(operation):
+                if not isinstance(word, Word):
+                    raise TypeError(f"{type(operation).__name__} -> {word!r} ({type(word).__name__})")
                 key = (word.address, word.value)
                 if key not in seen:
                     seen.add(key)
