@@ -261,6 +261,17 @@ class Corner:
     type: CornerType
     size: float  # always positive (radius or chamfer length)
 
+@dataclass
+class Rewind:
+    """Unwinds C in the air. The writer goes to its safety point, turns C with the tool
+    straight and comes back to (x, y, z) with the same tool direction (b, c).
+    Only the C number changes: the tool ends exactly where it was."""
+    x: float | None
+    y: float | None
+    z: float
+    b: float | None
+    c: float
+
 Operation = Union[
     LinearMove, 
     RapidMove, 
@@ -274,5 +285,6 @@ Operation = Union[
     WorkCoordinate,
     LocalOffset,
     CancelOffset,
-    PlaneSelection
+    PlaneSelection,
+    Rewind
 ]

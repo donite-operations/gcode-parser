@@ -4,8 +4,11 @@ from dialects.base import Writer, TOOL_COMMENT
 from dialects.fanuc_ares import mapping
 
 from core.ir import (
-    ToolChange, Word, ToolCompensation
+    ToolChange, Word, ToolCompensation, Rewind, Operation
 )
+def _fmt(value: float) -> str:
+    """240. / -269.86 / 90.14, same style as the ARES post."""
+    return f"{value:.3f}".rstrip("0")
 
 class FanucAresWriter(Writer):
     MAPPING = mapping
@@ -58,6 +61,32 @@ class FanucAresWriter(Writer):
             "M99",
             "%",
         ]
+
+    def _rewind_lines(self, op: Rewind) -> list[str]:
+        """Unwinds C away from the part with the same steps the ARES post uses
+        between operations. Ends exactly where the tool was."""
+        xy = " ".join(f"{axis}{_fmt(v)}" for axis, v in (("X", op.x), ("Y", op.y)) if v is not None)
+        b = op.b or 0.0
+        return [
+            "(REWIND START)",
+            "G5.1 Q0",
+            "G49",
+            "G0 G53 Z-250.",
+            "G0 G53 B0.",
+            "G0 G53 Z-250.",
+            f"G90 G0 C{_fmt(op.c)}",               # turn C with the tool straight
+            f"G0 B{_fmt(b)} C{_fmt(op.c)}",        # tilt back
+            "G43.4",                               # TCP on, same H (as the ARES post does)
+            f"G0 {xy}",
+            f"G0 Z{_fmt(op.z)}",
+            "G5.1 Q1 R5",
+            "(REWIND END)",
+        ]
+
+    def _write_body_block(self, block: list[Operation]) -> list[str]:
+        if block and isinstance(block[0], Rewind):
+            return self._rewind_lines(block[0])
+        return super()._write_body_block(block)
 
     def _write_tool_change(self, op: ToolChange) -> list[Word]:
         change = self._m("TOOL_CHANGE", ToolChange)
